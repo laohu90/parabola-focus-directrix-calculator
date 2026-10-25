@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ais-pre-r7e6m4mtbkm7zis3qt5hvo-76646728108.asia-southeast1.run.app/sitemap.xml
+Sitemap: https://parabola-focus-directrix-calculator.formulacalckit.com/sitemap.xml

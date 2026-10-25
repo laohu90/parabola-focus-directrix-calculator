@@ -19,49 +19,64 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Default language is English (as explicitly requested: "默认英语")
-  const [lang, setLang] = useState<Language>('en');
+  // Support URL search params (e.g. ?lang=es or ?eq=y^2=8x) for Google crawler & sharing
+  const [lang, setLang] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = params.get('lang') as Language;
+      if (urlLang && ['en', 'es', 'fr', 'pt', 'zh'].includes(urlLang)) {
+        return urlLang;
+      }
+    }
+    return 'en';
+  });
 
-  // Default problem: y^2 - 4y - 8x + 12 = 0
+  // Default problem or from URL ?eq=...
   const [currentResult, setCurrentResult] = useState<ParabolaAnalysisResult>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlEq = params.get('eq');
+      const urlLang = (params.get('lang') as Language) || 'en';
+      if (urlEq) {
+        try {
+          return parseNaturalEquation(urlEq, urlLang);
+        } catch {
+          // fallback to default
+        }
+      }
+    }
     return solveParabolaGeneral('horizontal', 1, -4, -8, 12, 'en');
   });
 
   const t = translations[lang];
 
-  // Update document title and html lang on language change
+  // Update document title, html lang, and URL search param on language change
   useEffect(() => {
     document.title = t.meta.title;
     document.documentElement.lang = lang;
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('lang') !== lang) {
+        url.searchParams.set('lang', lang);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
   }, [lang, t]);
 
   // Re-run solver when language changes so that step explanation notes match active language
   const handleLanguageChange = (newLang: Language) => {
     setLang(newLang);
     try {
-      const recomputed = solveParabolaGeneral(
-        currentResult.orientation,
-        1,
-        -2 * (currentResult.orientation === 'horizontal' ? currentResult.vertex.y : currentResult.vertex.x),
-        -(currentResult.direction === 'right' || currentResult.direction === 'up' ? 2 * currentResult.p : -2 * currentResult.p),
-        0,
-        newLang
-      );
-      // Keep exact vertex and parameter
-      setCurrentResult(
-        solveParabolaGeneral(
-          currentResult.orientation,
-          currentResult.orientation === 'horizontal' ? 1 : 1,
-          currentResult.orientation === 'horizontal' ? -2 * currentResult.vertex.y : -2 * currentResult.vertex.x,
-          currentResult.orientation === 'horizontal'
-            ? (currentResult.direction === 'right' ? -2 * currentResult.p : 2 * currentResult.p)
-            : (currentResult.direction === 'up' ? -2 * currentResult.p : 2 * currentResult.p),
-          currentResult.orientation === 'horizontal'
-            ? currentResult.vertex.y * currentResult.vertex.y + (currentResult.direction === 'right' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.x
-            : currentResult.vertex.x * currentResult.vertex.x + (currentResult.direction === 'up' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.y,
-          newLang
-        )
-      );
+      const A = currentResult.orientation === 'horizontal' ? 1 : 1;
+      const B = currentResult.orientation === 'horizontal' ? -2 * currentResult.vertex.y : -2 * currentResult.vertex.x;
+      const C = currentResult.orientation === 'horizontal'
+        ? (currentResult.direction === 'right' ? -2 * currentResult.p : 2 * currentResult.p)
+        : (currentResult.direction === 'up' ? -2 * currentResult.p : 2 * currentResult.p);
+      const D = currentResult.orientation === 'horizontal'
+        ? currentResult.vertex.y * currentResult.vertex.y + (currentResult.direction === 'right' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.x
+        : currentResult.vertex.x * currentResult.vertex.x + (currentResult.direction === 'up' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.y;
+
+      setCurrentResult(solveParabolaGeneral(currentResult.orientation, A, B, C, D, newLang));
     } catch {
       // Fallback
     }
@@ -72,6 +87,10 @@ export default function App() {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleSolve = (result: ParabolaAnalysisResult) => {
+    setCurrentResult(result);
   };
 
   const handleTagClick = (tag: string) => {
@@ -192,7 +211,7 @@ export default function App() {
 
         {/* Section 1: Input & Presets */}
         <section id="solver-section">
-          <ParabolaInput onSolve={setCurrentResult} currentResult={currentResult} lang={lang} />
+          <ParabolaInput onSolve={handleSolve} currentResult={currentResult} lang={lang} />
         </section>
 
         {/* Section 2: Two-Zone Interactive Stage (Solution Steps on Left, Dynamic Canvas on Right) */}
