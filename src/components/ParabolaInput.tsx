@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ConicAnalysisResult } from '../utils/conicTypes.ts';
 import { parseUniversalConic } from '../utils/equationParser.ts';
 import { solveParabola, solveEllipse, solveHyperbola } from '../utils/conicSolver.ts';
 import { MathView } from './MathView.tsx';
 import { Language, translations } from '../i18n/translations.ts';
-import { Calculator, ArrowRight, RotateCcw, Flame, Sparkles, History } from 'lucide-react';
+import {
+  Calculator,
+  ArrowRight,
+  RotateCcw,
+  Flame,
+  Sparkles,
+  History,
+  XCircle,
+  ClipboardPaste,
+  CheckCircle2
+} from 'lucide-react';
 
 interface ParabolaInputProps {
   onSolve: (result: ConicAnalysisResult, eqText?: string) => void;
@@ -45,6 +55,21 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
 
   const [inputError, setInputError] = useState<string | null>(null);
 
+  // Live syntax parsing for instant visual feedback
+  const livePreview = useMemo(() => {
+    if (!naturalEq.trim()) return null;
+    try {
+      const parsed = parseUniversalConic(naturalEq, lang);
+      return {
+        valid: true,
+        latex: parsed.standardLatex,
+        type: parsed.conicType
+      };
+    } catch {
+      return { valid: false, latex: '', type: null };
+    }
+  }, [naturalEq, lang]);
+
   const parseNum = (str: string): number => {
     const trimmed = str.trim();
     if (trimmed.includes('/')) {
@@ -65,10 +90,32 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
     try {
       setInputError(null);
       const res = parseUniversalConic(naturalEq, lang);
-      onSolve(res, naturalEq);
+      onSolve(res, naturalEq.trim());
     } catch (err: any) {
-      setInputError(err.message || 'Error parsing equation. Supports Unicode y², x² and LaTeX \\frac.');
+      setInputError(err.message || 'Error parsing equation.');
     }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setNaturalEq(text.trim());
+        setInputError(null);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleClear = () => {
+    setNaturalEq('');
+    setInputError(null);
+  };
+
+  const handleInsertSymbol = (sym: string) => {
+    setNaturalEq((prev) => prev + sym);
+    setInputError(null);
   };
 
   const handleSolveParabolaForm = () => {
@@ -79,7 +126,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       const c = parseNum(paraC);
       const d = parseNum(paraD);
       const res = solveParabola('horizontal', a, b, c, d, lang);
-      onSolve(res, `${paraA}y^2 + (${paraB})y + (${paraC})x + (${paraD}) = 0`);
+      const eqStr = `${paraA}y^2 + (${paraB})y + (${paraC})x + (${paraD}) = 0`;
+      setNaturalEq(eqStr);
+      onSolve(res, eqStr);
     } catch (err: any) {
       setInputError(err.message);
     }
@@ -94,7 +143,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       const d = parseNum(elD);
       const e = parseNum(elE);
       const res = solveEllipse(a, b, c, d, e, lang);
-      onSolve(res, `${elA}x^2 + ${elB}y^2 + (${elC})x + (${elD})y + (${elE}) = 0`);
+      const eqStr = `${elA}x^2 + ${elB}y^2 + (${elC})x + (${elD})y + (${elE}) = 0`;
+      setNaturalEq(eqStr);
+      onSolve(res, eqStr);
     } catch (err: any) {
       setInputError(err.message);
     }
@@ -109,19 +160,22 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       const d = parseNum(hyD);
       const e = parseNum(hyE);
       const res = solveHyperbola(a, b, c, d, e, lang);
-      onSolve(res, `${hyA}x^2 + (${hyB})y^2 + (${hyC})x + (${hyD})y + (${hyE}) = 0`);
+      const eqStr = `${hyA}x^2 + (${hyB})y^2 + (${hyC})x + (${hyD})y + (${hyE}) = 0`;
+      setNaturalEq(eqStr);
+      onSolve(res, eqStr);
     } catch (err: any) {
       setInputError(err.message);
     }
   };
 
-  // Presets covering Parabola, Ellipse, Hyperbola, LaTeX input, and Unicode
+  // Presets cleanly replace the input
   const presets = [
     {
       badge: lang === 'zh' ? '抛物线配方' : 'Parabola',
       latex: 'y^2 - 4y - 8x + 12 = 0',
       action: () => {
         setNaturalEq('y^2 - 4y - 8x + 12 = 0');
+        setInputError(null);
         const res = solveParabola('horizontal', 1, -4, -8, 12, lang);
         onSolve(res, 'y^2 - 4y - 8x + 12 = 0');
       }
@@ -131,6 +185,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '\\frac{x^2}{25} + \\frac{y^2}{16} = 1',
       action: () => {
         setNaturalEq('x^2/25 + y^2/16 = 1');
+        setInputError(null);
         const res = parseUniversalConic('x^2/25 + y^2/16 = 1', lang);
         onSolve(res, 'x^2/25 + y^2/16 = 1');
       }
@@ -140,6 +195,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0',
       action: () => {
         setNaturalEq('4x^2 + 9y^2 - 16x + 18y - 11 = 0');
+        setInputError(null);
         const res = solveEllipse(4, 9, -16, 18, -11, lang);
         onSolve(res, '4x^2 + 9y^2 - 16x + 18y - 11 = 0');
       }
@@ -149,6 +205,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1',
       action: () => {
         setNaturalEq('x^2/16 - y^2/9 = 1');
+        setInputError(null);
         const res = parseUniversalConic('x^2/16 - y^2/9 = 1', lang);
         onSolve(res, 'x^2/16 - y^2/9 = 1');
       }
@@ -158,6 +215,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: 'y² = 8x',
       action: () => {
         setNaturalEq('y² = 8x');
+        setInputError(null);
         const res = parseUniversalConic('y² = 8x', lang);
         onSolve(res, 'y² = 8x');
       }
@@ -167,6 +225,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '4x^2 - 9y^2 = 36',
       action: () => {
         setNaturalEq('4x^2 - 9y^2 = 36');
+        setInputError(null);
         const res = solveHyperbola(4, -9, 0, 0, -36, lang);
         onSolve(res, '4x^2 - 9y^2 = 36');
       }
@@ -180,12 +239,11 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
         <div className="flex items-center gap-2">
           <Calculator className="w-5 h-5 text-sky-600" />
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
-            {lang === 'zh' ? '圆锥曲线通用方程输入' : 'Universal Conic Section Equation Input'}
+            {lang === 'zh' ? '圆锥曲线智能输入' : 'Conic Section Smart Input'}
           </h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* History Button */}
           <button
             onClick={onOpenHistory}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
@@ -194,7 +252,6 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
             <span>{lang === 'zh' ? '做题历史' : 'History'}</span>
           </button>
 
-          {/* Mode Switcher */}
           <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100/90 rounded-lg">
             <button
               onClick={() => { setActiveTab('smart'); setInputError(null); }}
@@ -235,23 +292,62 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       <div className="p-5 sm:p-6 space-y-5">
         {/* TAB 1: Smart Natural Equation Input */}
         {activeTab === 'smart' && (
-          <form onSubmit={handleSolveSmart} className="space-y-4">
+          <form onSubmit={handleSolveSmart} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-slate-800 mb-1.5">
-                {lang === 'zh'
-                  ? '支持粘贴或直接输入抛物线、椭圆、双曲线任意方程（支持 Unicode 上标 y²、x² 与 LaTeX \\frac 格式）：'
-                  : 'Enter or paste any Parabola, Ellipse, or Hyperbola equation (supports Unicode y², x² and LaTeX \\frac):'}
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label className="text-sm font-medium text-slate-800">
+                  {lang === 'zh'
+                    ? '输入或粘贴方程（支持 Unicode 上标 y²、x² 与 LaTeX 语法）：'
+                    : 'Enter or paste equation (supports Unicode y², x² and LaTeX):'}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handlePaste}
+                    className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900 px-2 py-0.5 rounded border border-slate-200 hover:bg-slate-50 transition-colors"
+                    title="Paste"
+                  >
+                    <ClipboardPaste className="w-3.5 h-3.5" />
+                    <span>{lang === 'zh' ? '粘贴' : 'Paste'}</span>
+                  </button>
+                  {naturalEq && (
+                    <button
+                      type="button"
+                      onClick={handleClear}
+                      className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 px-2 py-0.5 rounded border border-rose-200 hover:bg-rose-50 transition-colors"
+                      title="Clear"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>{lang === 'zh' ? '清空' : 'Clear'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Main Input Field with clear & submit buttons */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
                   <input
                     type="text"
                     value={naturalEq}
-                    onChange={(e) => setNaturalEq(e.target.value)}
-                    placeholder="e.g. y² - 4y - 8x + 12 = 0  or  \frac{x^2}{16} + \frac{y^2}{9} = 1  or  4x² - 9y² = 36"
-                    className="w-full px-4 py-2.5 text-base bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono text-slate-900 shadow-2xs"
+                    onChange={(e) => {
+                      setNaturalEq(e.target.value);
+                      setInputError(null);
+                    }}
+                    placeholder="e.g. y² - 4y - 8x + 12 = 0  or  x^2/25 + y^2/16 = 1  or  4x² - 9y² = 36"
+                    className="w-full px-4 py-2.5 pr-10 text-base bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono text-slate-900 shadow-2xs"
                   />
+                  {naturalEq && (
+                    <button
+                      type="button"
+                      onClick={handleClear}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
+
                 <button
                   type="submit"
                   className="px-6 py-2.5 text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs shrink-0"
@@ -260,11 +356,37 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
                   <span>{t.solveBtn}</span>
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
-                {lang === 'zh'
-                  ? '系统将自动判定圆锥曲线类型，展开双向配方法拆解过程并提供“为什么这样做”的数学原理解析。'
-                  : 'The system automatically classifies the conic, breaks down completing-the-square, and provides pedagogical "Why" rationales.'}
-              </p>
+
+              {/* Quick Math Symbols Bar */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2 border-t border-slate-100">
+                <span className="text-xs text-slate-400 mr-1">{lang === 'zh' ? '快捷符号：' : 'Symbols:'}</span>
+                {['y²', 'x²', '²', '=', '+', '-', '/', '( )', '½'].map((sym) => (
+                  <button
+                    key={sym}
+                    type="button"
+                    onClick={() => handleInsertSymbol(sym === '( )' ? '()' : sym)}
+                    className="px-2.5 py-1 text-xs font-mono font-semibold bg-slate-100 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300 border border-slate-200 rounded-md transition-colors"
+                  >
+                    {sym}
+                  </button>
+                ))}
+              </div>
+
+              {/* Real-Time Syntax Validation & LaTeX Preview */}
+              {livePreview && livePreview.valid && (
+                <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between gap-3 text-xs text-emerald-900">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="font-semibold">
+                      {lang === 'zh' ? '已识别有效方程：' : 'Recognized Equation:'}
+                    </span>
+                    <MathView math={naturalEq} className="font-bold" />
+                  </div>
+                  <span className="font-mono uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold">
+                    {livePreview.type}
+                  </span>
+                </div>
+              )}
             </div>
           </form>
         )}
