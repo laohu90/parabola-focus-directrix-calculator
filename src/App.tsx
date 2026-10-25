@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { solveParabolaGeneral, ParabolaAnalysisResult } from './utils/parabolaSolver.ts';
-import { parseNaturalEquation } from './utils/equationParser.ts';
+import { ConicAnalysisResult } from './utils/conicTypes.ts';
+import { solveParabola } from './utils/conicSolver.ts';
+import { parseUniversalConic } from './utils/equationParser.ts';
+import { getHistory, saveHistoryItem, HistoryItem } from './utils/historyManager.ts';
 import { ParabolaInput } from './components/ParabolaInput.tsx';
 import { StepsSolutionView } from './components/StepsSolutionView.tsx';
 import { ParabolaCanvas } from './components/ParabolaCanvas.tsx';
@@ -8,6 +10,7 @@ import { OpeningDirectionGuide } from './components/OpeningDirectionGuide.tsx';
 import { ParabolaQuiz } from './components/ParabolaQuiz.tsx';
 import { FaqSection } from './components/FaqSection.tsx';
 import { KeywordTags } from './components/KeywordTags.tsx';
+import { HistoryDrawer } from './components/HistoryDrawer.tsx';
 import { MathView } from './components/MathView.tsx';
 import { Language, translations } from './i18n/translations.ts';
 import {
@@ -15,7 +18,8 @@ import {
   BookOpen,
   Sparkles,
   GraduationCap,
-  Globe
+  Globe,
+  History
 } from 'lucide-react';
 
 export default function App() {
@@ -32,21 +36,25 @@ export default function App() {
   });
 
   // Default problem or from URL ?eq=...
-  const [currentResult, setCurrentResult] = useState<ParabolaAnalysisResult>(() => {
+  const [currentResult, setCurrentResult] = useState<ConicAnalysisResult>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlEq = params.get('eq');
       const urlLang = (params.get('lang') as Language) || 'en';
       if (urlEq) {
         try {
-          return parseNaturalEquation(urlEq, urlLang);
+          return parseUniversalConic(urlEq, urlLang);
         } catch {
-          // fallback to default
+          // fallback
         }
       }
     }
-    return solveParabolaGeneral('horizontal', 1, -4, -8, 12, 'en');
+    return solveParabola('horizontal', 1, -4, -8, 12, 'en');
   });
+
+  // History state
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyList, setHistoryList] = useState<HistoryItem[]>(() => getHistory());
 
   const t = translations[lang];
 
@@ -63,22 +71,16 @@ export default function App() {
     }
   }, [lang, t]);
 
-  // Re-run solver when language changes so that step explanation notes match active language
+  // Re-run solver when language changes
   const handleLanguageChange = (newLang: Language) => {
     setLang(newLang);
-    try {
-      const A = currentResult.orientation === 'horizontal' ? 1 : 1;
-      const B = currentResult.orientation === 'horizontal' ? -2 * currentResult.vertex.y : -2 * currentResult.vertex.x;
-      const C = currentResult.orientation === 'horizontal'
-        ? (currentResult.direction === 'right' ? -2 * currentResult.p : 2 * currentResult.p)
-        : (currentResult.direction === 'up' ? -2 * currentResult.p : 2 * currentResult.p);
-      const D = currentResult.orientation === 'horizontal'
-        ? currentResult.vertex.y * currentResult.vertex.y + (currentResult.direction === 'right' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.x
-        : currentResult.vertex.x * currentResult.vertex.x + (currentResult.direction === 'up' ? 2 * currentResult.p : -2 * currentResult.p) * currentResult.vertex.y;
-
-      setCurrentResult(solveParabolaGeneral(currentResult.orientation, A, B, C, D, newLang));
-    } catch {
-      // Fallback
+    if (currentResult.rawEquation) {
+      try {
+        const re = parseUniversalConic(currentResult.rawEquation, newLang);
+        setCurrentResult(re);
+      } catch {
+        // fallback
+      }
     }
   };
 
@@ -89,37 +91,51 @@ export default function App() {
     }
   };
 
-  const handleSolve = (result: ParabolaAnalysisResult) => {
-    setCurrentResult(result);
+  const handleSolve = (result: ConicAnalysisResult, eqText?: string) => {
+    const finalResult = { ...result, rawEquation: eqText || result.standardLatex };
+    setCurrentResult(finalResult);
+
+    // Save to history
+    if (eqText) {
+      const updated = saveHistoryItem(eqText, result.conicType);
+      setHistoryList(updated);
+    }
+
+    // Sync to URL
+    if (typeof window !== 'undefined' && eqText) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('eq', eqText);
+      window.history.replaceState({}, '', url.toString());
+    }
   };
 
   const handleTagClick = (tag: string) => {
     scrollToSection('solver-section');
     if (tag.includes('y² = 2px') || tag.includes('y^2')) {
-      const res = parseNaturalEquation('y^2 = 8x', lang);
-      setCurrentResult(res);
+      const res = parseUniversalConic('y^2 = 8x', lang);
+      handleSolve(res, 'y^2 = 8x');
     } else if (tag.includes('x-h') || tag.includes('completar') || tag.includes('complétion') || tag.includes('配方')) {
-      const res = parseNaturalEquation('y^2 - 4y - 8x + 12 = 0', lang);
-      setCurrentResult(res);
+      const res = parseUniversalConic('y^2 - 4y - 8x + 12 = 0', lang);
+      handleSolve(res, 'y^2 - 4y - 8x + 12 = 0');
     }
   };
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
       {/* 3-Zone Top Navigation Bar adhering to Frontend Design Constitution */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 print-hide">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6 sm:gap-8">
-          {/* Zone 1: Single text wordmark */}
+          {/* Zone 1: Wordmark */}
           <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
             <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white font-bold text-sm shadow-2xs">
               <Compass className="w-5 h-5" />
             </div>
             <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
-              {t.nav.brand}
+              {lang === 'zh' ? '圆锥曲线与抛物线焦点求解器' : 'Conic Sections & Parabola Solver'}
             </span>
           </div>
 
-          {/* Zone 2: 4-5 single-line navigation links */}
+          {/* Zone 2: Navigation Links */}
           <nav className="hidden lg:flex items-center gap-6 xl:gap-7 text-sm font-semibold text-slate-600">
             <button
               onClick={() => scrollToSection('solver-section')}
@@ -153,8 +169,23 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Language Selector & Primary Action */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Zone 3: Language Selector & History */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* History Toggle Button */}
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition-colors border border-slate-200"
+              title="History"
+            >
+              <History className="w-4 h-4 text-sky-600" />
+              <span className="hidden sm:inline">{lang === 'zh' ? '历史记录' : 'History'}</span>
+              {historyList.length > 0 && (
+                <span className="bg-sky-600 text-white rounded-full px-1.5 text-[10px] font-bold">
+                  {historyList.length}
+                </span>
+              )}
+            </button>
+
             {/* Language Selector */}
             <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
               <Globe className="w-3.5 h-3.5 text-slate-500 ml-1.5 mr-1 shrink-0" />
@@ -186,37 +217,45 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-10 sm:space-y-12">
         {/* Hero Section */}
-        <section className="text-center max-w-3xl mx-auto pt-2 pb-2">
-          {/* Unboxed Metadata Disciplined Line */}
+        <section className="text-center max-w-3xl mx-auto pt-2 pb-2 print-hide">
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-slate-500 mb-3">
-            <span>{t.meta.badge1}</span>
+            <span>{lang === 'zh' ? '抛物线 · 椭圆 · 双曲线' : 'Parabola · Ellipse · Hyperbola'}</span>
             <span aria-hidden="true">·</span>
             <span>{t.meta.badge2}</span>
             <span aria-hidden="true">·</span>
-            <span>{t.meta.badge3}</span>
+            <span>{lang === 'zh' ? '深度原理“为什么”解析' : 'In-depth "Why" Rationales'}</span>
             <span aria-hidden="true">·</span>
-            <span>{t.meta.badge4}</span>
+            <span>{lang === 'zh' ? '支持 y² 上标与 LaTeX' : 'Unicode y² & LaTeX'}</span>
           </div>
 
           <h1
             className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-4"
             style={{ textWrap: 'balance' }}
           >
-            {t.hero.title}
+            {lang === 'zh'
+              ? '圆锥曲线全能求解器 · 配方法深度拆解'
+              : 'Conic Sections & Parabola Solver | Full Step-by-Step Rationale'}
           </h1>
           <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
-            {t.hero.subtitle}
+            {lang === 'zh'
+              ? '覆盖抛物线、椭圆与双曲线完整解析几何知识体系。独创“为什么这样做”数学原理解析，深度拆解配方法、开口方向、渐近线与离心率。'
+              : 'Comprehensive analytic geometry solver for Parabolas, Ellipses, and Hyperbolas. Features pedagogical "Why do this" explanations and interactive coordinate proof.'}
           </p>
         </section>
 
         {/* Section 1: Input & Presets */}
-        <section id="solver-section">
-          <ParabolaInput onSolve={handleSolve} currentResult={currentResult} lang={lang} />
+        <section id="solver-section" className="print-hide">
+          <ParabolaInput
+            onSolve={handleSolve}
+            currentResult={currentResult}
+            lang={lang}
+            onOpenHistory={() => setHistoryOpen(true)}
+          />
         </section>
 
-        {/* Section 2: Two-Zone Interactive Stage (Solution Steps on Left, Dynamic Canvas on Right) */}
+        {/* Section 2: Two-Zone Interactive Stage */}
         <section id="canvas-section" className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 print-hide">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-sky-600" />
               <h2 className="text-base sm:text-lg font-bold text-slate-900">
@@ -224,132 +263,140 @@ export default function App() {
               </h2>
             </div>
             <div className="text-xs sm:text-sm text-slate-500 font-mono">
-              {t.summary.axisOfSym}: <MathView math={currentResult.axisOfSymmetry.latex} /> · {t.summary.direction}: {currentResult.direction}
+              {lang === 'zh' ? '当前类型' : 'Conic Type'}: {currentResult.conicType.toUpperCase()}
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
             {/* Left Zone: Step-by-Step Completing the Square Solution (7 cols) */}
             <div className="lg:col-span-7 space-y-6">
-              <StepsSolutionView parabola={currentResult} lang={lang} />
+              <StepsSolutionView conic={currentResult} lang={lang} />
             </div>
 
             {/* Right Zone: Interactive Geometric Coordinate Canvas (5 cols) */}
-            <div className="lg:col-span-5 space-y-6 sticky top-20">
-              <ParabolaCanvas parabola={currentResult} lang={lang} />
+            <div className="lg:col-span-5 space-y-6 sticky top-20 print-hide">
+              <ParabolaCanvas conic={currentResult} lang={lang} />
 
               {/* Quick Math Knowledge Flashcard */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 text-xs sm:text-sm space-y-2.5">
                 <div className="font-bold text-slate-900 flex items-center gap-1.5 text-sm sm:text-base">
                   <BookOpen className="w-4 h-4 text-sky-600" />
-                  <span>{lang === 'zh' ? '抛物线第一几何定义' : 'Geometric Definition of Parabola'}</span>
+                  <span>
+                    {currentResult.conicType === 'parabola' && (lang === 'zh' ? '抛物线第一定义' : 'Parabola Definition')}
+                    {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '椭圆第一定义' : 'Ellipse Definition')}
+                    {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '双曲线第一定义' : 'Hyperbola Definition')}
+                  </span>
                 </div>
                 <p className="text-slate-600 leading-relaxed">
-                  {lang === 'zh'
-                    ? '平面内与一个定点 F（焦点）和一条定直线 l（准线，且定点不在定直线上）距离相等的点的轨迹叫做抛物线。'
-                    : 'A parabola is the locus of a point P equidistant from a fixed point (Focus F) and a fixed line (Directrix l).'}
+                  {currentResult.conicType === 'parabola' && (lang === 'zh' ? '到定点 F（焦点）与定直线 l（准线）距离相等的轨迹。' : 'Locus of points equidistant from Focus and Directrix.')}
+                  {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之和等于定长 2a（2a > |F₁F₂|）的轨迹。' : 'Locus of points where the sum of distances to two foci is constant 2a.')}
+                  {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之差的绝对值等于定长 2a（2a < |F₁F₂|）的轨迹。' : 'Locus of points where the absolute difference of distances to two foci is constant 2a.')}
                 </p>
                 <div className="bg-white p-3 rounded-lg border border-slate-200 text-center font-bold text-base text-slate-800">
-                  <MathView math="|PF| = d(P, l)" />
+                  {currentResult.conicType === 'parabola' && <MathView math="|PF| = d(P, l)" />}
+                  {currentResult.conicType === 'ellipse' && <MathView math="|PF_1| + |PF_2| = 2a" />}
+                  {currentResult.conicType === 'hyperbola' && <MathView math="||PF_1| - |PF_2|| = 2a" />}
                 </div>
-                <p className="text-slate-500 text-xs">
-                  {lang === 'zh'
-                    ? '顶点到焦点与准线的距离各为 p/2，焦点到准线的距离为 p。'
-                    : 'Vertex is midway between Focus and Directrix, each distance equal to p/2.'}
-                </p>
               </div>
             </div>
           </div>
         </section>
 
         {/* Section 3: Opening Direction Guide & Pitfalls */}
-        <section id="guide-section" className="pt-2">
+        <section id="guide-section" className="pt-2 print-hide">
           <OpeningDirectionGuide lang={lang} />
         </section>
 
         {/* Section 4: Self-Test Quiz */}
-        <section id="quiz-section" className="pt-2">
+        <section id="quiz-section" className="pt-2 print-hide">
           <ParabolaQuiz lang={lang} />
         </section>
 
         {/* Section 5: High School Geometry Formula Cheat Sheet */}
-        <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">
+        <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4 print-hide">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <GraduationCap className="w-5 h-5 text-sky-600" />
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
               {lang === 'zh'
-                ? '高二解析几何 · 抛物线高频秒杀公式速查卡'
-                : 'Conic Sections · Parabola Essential Exam Formulas'}
+                ? '圆锥曲线大题高频秒杀公式速查卡'
+                : 'Conic Sections Essential Exam Formula Cheat Sheet'}
             </h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
             <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/90 space-y-2">
               <div className="font-bold text-slate-900">
-                {lang === 'zh' ? '1. 焦半径公式（以 y²=2px 为例）' : '1. Focal Radius Formula (for y²=2px)'}
+                {lang === 'zh' ? '1. 焦点与准线统一定义（第二定义）' : '1. Unified Directrix Definition'}
               </div>
               <div className="text-slate-600">
-                {lang === 'zh' ? '设抛物线上动点 P(x₀, y₀)，到焦点的距离为：' : 'Distance from point P(x₀, y₀) to Focus:'}
+                {lang === 'zh' ? '曲线上任意动点到焦点与准线的距离比等于离心率：' : 'Ratio of distance to focus over distance to directrix equals eccentricity:'}
               </div>
               <div className="bg-white p-2.5 rounded border border-slate-200 text-center font-bold text-base">
-                <MathView math="|PF| = x_0 + \frac{p}{2}" />
+                <MathView math="\frac{|PF|}{d(P, l)} = e" />
               </div>
               <p className="text-slate-500 text-xs">
-                {lang === 'zh'
-                  ? '省去求根号的繁琐计算，直接用横坐标加上半距 p/2。'
-                  : 'Derived directly from distance to directrix: d = x₀ - (-p/2) = x₀ + p/2.'}
+                {lang === 'zh' ? 'e < 1 为椭圆；e = 1 为抛物线；e > 1 为双曲线。' : 'e < 1: Ellipse; e = 1: Parabola; e > 1: Hyperbola.'}
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/90 space-y-2">
               <div className="font-bold text-slate-900">
-                {lang === 'zh' ? '2. 焦点弦长公式' : '2. Focal Chord Length Formula'}
+                {lang === 'zh' ? '2. 通径长统一公式' : '2. Latus Rectum Unified Length'}
               </div>
               <div className="text-slate-600">
-                {lang === 'zh' ? '过焦点弦两端点 A(x₁, y₁), B(x₂, y₂)：' : 'Focal chord AB with inclination angle θ:'}
+                {lang === 'zh' ? '过焦点垂直于对称轴的弦长：' : 'Length of focal chord perpendicular to major/transverse axis:'}
               </div>
               <div className="bg-white p-2.5 rounded border border-slate-200 text-center font-bold text-base">
-                <MathView math="|AB| = x_1 + x_2 + p = \frac{2p}{\sin^2\theta}" />
+                <MathView math="2p \quad \text{或} \quad \frac{2b^2}{a}" />
               </div>
               <p className="text-slate-500 text-xs">
-                {lang === 'zh'
-                  ? '当 θ = 90° 时弦垂直于对称轴，即为通径长 2p。'
-                  : 'When θ = 90°, the chord is the latus rectum of length 2p.'}
+                {lang === 'zh' ? '作图与求弦长最小值大题的第一核心量。' : 'Key parameter for sketching curve curvature.'}
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/90 space-y-2">
               <div className="font-bold text-slate-900">
-                {lang === 'zh' ? '3. 焦点弦倒数和性质' : '3. Reciprocal Focal Segment Property'}
+                {lang === 'zh' ? '3. 离心率与渐近线关系' : '3. Asymptotes & Eccentricity'}
               </div>
               <div className="text-slate-600">
-                {lang === 'zh' ? '焦点分弦所得两线段的倒数和恒为常数：' : 'Segments AF and BF formed by focus division:'}
+                {lang === 'zh' ? '双曲线渐近线斜率与离心率的直接互化：' : 'Relation between asymptote slope and eccentricity in hyperbola:'}
               </div>
               <div className="bg-white p-2.5 rounded border border-slate-200 text-center font-bold text-base">
-                <MathView math="\frac{1}{|AF|} + \frac{1}{|BF|} = \frac{2}{p}" />
+                <MathView math="e^2 = 1 + \left(\frac{b}{a}\right)^2 = 1 + k^2" />
               </div>
               <p className="text-slate-500 text-xs">
-                {lang === 'zh'
-                  ? '无论焦点弦斜率如何改变，倒数之和始终恒等于 2/p。'
-                  : 'Invariant under any chord orientation; frequently tested in exams.'}
+                {lang === 'zh' ? '已知渐近线斜率 k 即可直接秒解离心率 e。' : 'Directly converts asymptote slope into eccentricity without solving a and b.'}
               </p>
             </div>
           </div>
         </section>
 
         {/* Section 6: FAQ Accordion */}
-        <section id="faq-section" className="pt-2">
+        <section id="faq-section" className="pt-2 print-hide">
           <FaqSection lang={lang} />
         </section>
 
         {/* Section 7: Keyword Cloud / SEO Topics */}
-        <section className="pt-2">
+        <section className="pt-2 print-hide">
           <KeywordTags lang={lang} onTagClick={handleTagClick} />
         </section>
       </main>
 
+      {/* History Drawer Modal */}
+      <HistoryDrawer
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        historyList={historyList}
+        onSelectEquation={(eq) => {
+          const res = parseUniversalConic(eq, lang);
+          handleSolve(res, eq);
+        }}
+        onUpdateList={setHistoryList}
+        lang={lang}
+      />
+
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 mt-14">
+      <footer className="border-t border-slate-200 bg-white py-8 mt-14 print-hide">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs sm:text-sm text-slate-500">
           <div>
             <span>{t.footer.desc}</span>

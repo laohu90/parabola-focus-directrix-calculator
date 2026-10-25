@@ -1,50 +1,51 @@
 import React, { useState } from 'react';
-import {
-  ParabolaOrientation,
-  ParabolaAnalysisResult,
-  solveParabolaGeneral,
-  solveParabolaStandard,
-  solveParabolaFunction
-} from '../utils/parabolaSolver.ts';
-import { parseNaturalEquation } from '../utils/equationParser.ts';
+import { ConicAnalysisResult } from '../utils/conicTypes.ts';
+import { parseUniversalConic } from '../utils/equationParser.ts';
+import { solveParabola, solveEllipse, solveHyperbola } from '../utils/conicSolver.ts';
 import { MathView } from './MathView.tsx';
 import { Language, translations } from '../i18n/translations.ts';
-import { Calculator, ArrowRight, RotateCcw, Flame, Sparkles } from 'lucide-react';
+import { Calculator, ArrowRight, RotateCcw, Flame, Sparkles, History } from 'lucide-react';
 
 interface ParabolaInputProps {
-  onSolve: (result: ParabolaAnalysisResult) => void;
-  currentResult: ParabolaAnalysisResult | null;
+  onSolve: (result: ConicAnalysisResult, eqText?: string) => void;
+  currentResult: ConicAnalysisResult | null;
   lang: Language;
+  onOpenHistory: () => void;
 }
 
-export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) => {
+export const ParabolaInput: React.FC<ParabolaInputProps> = ({
+  onSolve,
+  lang,
+  onOpenHistory
+}) => {
   const t = translations[lang].input;
 
-  const [activeTab, setActiveTab] = useState<'smart' | 'general' | 'standard' | 'function'>('smart');
-
-  // Smart natural input
+  const [activeTab, setActiveTab] = useState<'smart' | 'parabola' | 'ellipse' | 'hyperbola'>('smart');
   const [naturalEq, setNaturalEq] = useState<string>('y^2 - 4y - 8x + 12 = 0');
 
-  // General Form: A*u^2 + B*u + C*v + D = 0
-  const [genOrientation, setGenOrientation] = useState<ParabolaOrientation>('horizontal');
-  const [genA, setGenA] = useState<string>('1');
-  const [genB, setGenB] = useState<string>('-4');
-  const [genC, setGenC] = useState<string>('-8');
-  const [genD, setGenD] = useState<string>('12');
+  // Parabola form
+  const [paraA, setParaA] = useState('1');
+  const [paraB, setParaB] = useState('-4');
+  const [paraC, setParaC] = useState('-8');
+  const [paraD, setParaD] = useState('12');
 
-  // Standard Form: y^2 = k*x or x^2 = k*y
-  const [stdOrientation, setStdOrientation] = useState<ParabolaOrientation>('horizontal');
-  const [stdCoeff, setStdCoeff] = useState<string>('8');
+  // Ellipse form: Ax^2 + By^2 + Cx + Dy + E = 0
+  const [elA, setElA] = useState('4');
+  const [elB, setElB] = useState('9');
+  const [elC, setElC] = useState('-16');
+  const [elD, setElD] = useState('18');
+  const [elE, setElE] = useState('-11');
 
-  // Function Form: y = ax^2 + bx + c or x = ay^2 + by + c
-  const [funcOrientation, setFuncOrientation] = useState<ParabolaOrientation>('vertical');
-  const [funcA, setFuncA] = useState<string>('0.25');
-  const [funcB, setFuncB] = useState<string>('0');
-  const [funcC, setFuncC] = useState<string>('0');
+  // Hyperbola form: Ax^2 - By^2 + Cx + Dy + E = 0
+  const [hyA, setHyA] = useState('4');
+  const [hyB, setHyB] = useState('-9');
+  const [hyC, setHyC] = useState('0');
+  const [hyD, setHyD] = useState('0');
+  const [hyE, setHyE] = useState('-36');
 
   const [inputError, setInputError] = useState<string | null>(null);
 
-  const parseVal = (str: string): number => {
+  const parseNum = (str: string): number => {
     const trimmed = str.trim();
     if (trimmed.includes('/')) {
       const parts = trimmed.split('/');
@@ -55,7 +56,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
       }
     }
     const val = parseFloat(trimmed);
-    if (isNaN(val)) throw new Error(`"${str}" is not a valid number or fraction.`);
+    if (isNaN(val)) throw new Error(`"${str}" is invalid.`);
     return val;
   };
 
@@ -63,161 +64,171 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
     if (e) e.preventDefault();
     try {
       setInputError(null);
-      const res = parseNaturalEquation(naturalEq, lang);
-      onSolve(res);
+      const res = parseUniversalConic(naturalEq, lang);
+      onSolve(res, naturalEq);
     } catch (err: any) {
-      setInputError(err.message || 'Error parsing equation. Please check syntax.');
+      setInputError(err.message || 'Error parsing equation. Supports Unicode y², x² and LaTeX \\frac.');
     }
   };
 
-  const handleSolveGeneral = () => {
+  const handleSolveParabolaForm = () => {
     try {
       setInputError(null);
-      const a = parseVal(genA);
-      const b = parseVal(genB);
-      const c = parseVal(genC);
-      const d = parseVal(genD);
-      const res = solveParabolaGeneral(genOrientation, a, b, c, d, lang);
-      onSolve(res);
+      const a = parseNum(paraA);
+      const b = parseNum(paraB);
+      const c = parseNum(paraC);
+      const d = parseNum(paraD);
+      const res = solveParabola('horizontal', a, b, c, d, lang);
+      onSolve(res, `${paraA}y^2 + (${paraB})y + (${paraC})x + (${paraD}) = 0`);
     } catch (err: any) {
-      setInputError(err.message || 'Error solving equation.');
+      setInputError(err.message);
     }
   };
 
-  const handleSolveStandard = () => {
+  const handleSolveEllipseForm = () => {
     try {
       setInputError(null);
-      const k = parseVal(stdCoeff);
-      if (Math.abs(k) < 1e-7) throw new Error('Linear coefficient cannot be zero.');
-      const res = solveParabolaStandard(stdOrientation, k, lang);
-      onSolve(res);
+      const a = parseNum(elA);
+      const b = parseNum(elB);
+      const c = parseNum(elC);
+      const d = parseNum(elD);
+      const e = parseNum(elE);
+      const res = solveEllipse(a, b, c, d, e, lang);
+      onSolve(res, `${elA}x^2 + ${elB}y^2 + (${elC})x + (${elD})y + (${elE}) = 0`);
     } catch (err: any) {
-      setInputError(err.message || 'Error solving standard form.');
+      setInputError(err.message);
     }
   };
 
-  const handleSolveFunction = () => {
+  const handleSolveHyperbolaForm = () => {
     try {
       setInputError(null);
-      const a = parseVal(funcA);
-      const b = parseVal(funcB);
-      const c = parseVal(funcC);
-      if (Math.abs(a) < 1e-7) throw new Error('Leading quadratic coefficient a cannot be zero.');
-      const res = solveParabolaFunction(funcOrientation, a, b, c, lang);
-      onSolve(res);
+      const a = parseNum(hyA);
+      const b = parseNum(hyB);
+      const c = parseNum(hyC);
+      const d = parseNum(hyD);
+      const e = parseNum(hyE);
+      const res = solveHyperbola(a, b, c, d, e, lang);
+      onSolve(res, `${hyA}x^2 + (${hyB})y^2 + (${hyC})x + (${hyD})y + (${hyE}) = 0`);
     } catch (err: any) {
-      setInputError(err.message || 'Error solving function form.');
+      setInputError(err.message);
     }
   };
 
-  // Multilingual curated presets
+  // Presets covering Parabola, Ellipse, Hyperbola, LaTeX input, and Unicode
   const presets = [
     {
-      badge: lang === 'zh' ? '基础必考' : 'Standard',
-      latex: 'y^2 = 8x',
-      desc: lang === 'zh' ? '右开口标准方程' : 'Right-opening standard form',
-      action: () => {
-        setNaturalEq('y^2 = 8x');
-        const res = solveParabolaStandard('horizontal', 8, lang);
-        onSolve(res);
-      }
-    },
-    {
-      badge: lang === 'zh' ? '负号易错' : 'Negative Coeff',
-      latex: 'x^2 = -6y',
-      desc: lang === 'zh' ? '向下开口易错题' : 'Down-opening parabola',
-      action: () => {
-        setNaturalEq('x^2 = -6y');
-        const res = solveParabolaStandard('vertical', -6, lang);
-        onSolve(res);
-      }
-    },
-    {
-      badge: lang === 'zh' ? '配方大题' : 'Completing Square',
+      badge: lang === 'zh' ? '抛物线配方' : 'Parabola',
       latex: 'y^2 - 4y - 8x + 12 = 0',
-      desc: lang === 'zh' ? '完整配方法拆解' : 'Full complete the square',
       action: () => {
         setNaturalEq('y^2 - 4y - 8x + 12 = 0');
-        const res = solveParabolaGeneral('horizontal', 1, -4, -8, 12, lang);
-        onSolve(res);
+        const res = solveParabola('horizontal', 1, -4, -8, 12, lang);
+        onSolve(res, 'y^2 - 4y - 8x + 12 = 0');
       }
     },
     {
-      badge: lang === 'zh' ? '上下开口' : 'Vertical Vertex',
-      latex: 'x^2 + 6x + 4y + 1 = 0',
-      desc: lang === 'zh' ? '竖直轴配方题' : 'Vertical axis complete square',
+      badge: lang === 'zh' ? '椭圆标准式' : 'Ellipse Frac',
+      latex: '\\frac{x^2}{25} + \\frac{y^2}{16} = 1',
       action: () => {
-        setNaturalEq('x^2 + 6x + 4y + 1 = 0');
-        const res = solveParabolaGeneral('vertical', 1, 6, 4, 1, lang);
-        onSolve(res);
+        setNaturalEq('x^2/25 + y^2/16 = 1');
+        const res = parseUniversalConic('x^2/25 + y^2/16 = 1', lang);
+        onSolve(res, 'x^2/25 + y^2/16 = 1');
       }
     },
     {
-      badge: lang === 'zh' ? '初高衔接' : 'Function Form',
-      latex: 'y = \\frac{1}{4}x^2',
-      desc: lang === 'zh' ? '二次函数求焦点' : 'Convert y = ax² to 2p form',
+      badge: lang === 'zh' ? '椭圆一般式配方' : 'Ellipse Square',
+      latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0',
       action: () => {
-        setNaturalEq('y = 0.25x^2');
-        const res = solveParabolaFunction('vertical', 0.25, 0, 0, lang);
-        onSolve(res);
+        setNaturalEq('4x^2 + 9y^2 - 16x + 18y - 11 = 0');
+        const res = solveEllipse(4, 9, -16, 18, -11, lang);
+        onSolve(res, '4x^2 + 9y^2 - 16x + 18y - 11 = 0');
       }
     },
     {
-      badge: lang === 'zh' ? '系数≠1' : 'Leading Coeff ≠ 1',
-      latex: '2y^2 - 8y - 16x + 24 = 0',
-      desc: lang === 'zh' ? '首项归一再配方' : 'Divide by leading coeff first',
+      badge: lang === 'zh' ? '双曲线标准式' : 'Hyperbola',
+      latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1',
       action: () => {
-        setNaturalEq('2y^2 - 8y - 16x + 24 = 0');
-        const res = solveParabolaGeneral('horizontal', 2, -8, -16, 24, lang);
-        onSolve(res);
+        setNaturalEq('x^2/16 - y^2/9 = 1');
+        const res = parseUniversalConic('x^2/16 - y^2/9 = 1', lang);
+        onSolve(res, 'x^2/16 - y^2/9 = 1');
+      }
+    },
+    {
+      badge: lang === 'zh' ? 'Unicode输入' : 'Unicode y²',
+      latex: 'y² = 8x',
+      action: () => {
+        setNaturalEq('y² = 8x');
+        const res = parseUniversalConic('y² = 8x', lang);
+        onSolve(res, 'y² = 8x');
+      }
+    },
+    {
+      badge: lang === 'zh' ? '双曲线一般式' : 'Hyperbola Eq',
+      latex: '4x^2 - 9y^2 = 36',
+      action: () => {
+        setNaturalEq('4x^2 - 9y^2 = 36');
+        const res = solveHyperbola(4, -9, 0, 0, -36, lang);
+        onSolve(res, '4x^2 - 9y^2 = 36');
       }
     }
   ];
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-      {/* Top Header / Mode Switcher */}
+      {/* Header */}
       <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60">
         <div className="flex items-center gap-2">
           <Calculator className="w-5 h-5 text-sky-600" />
           <h2 className="text-base sm:text-lg font-bold text-slate-900">
-            {t.title}
+            {lang === 'zh' ? '圆锥曲线通用方程输入' : 'Universal Conic Section Equation Input'}
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100/90 rounded-lg">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* History Button */}
           <button
-            onClick={() => { setActiveTab('smart'); setInputError(null); }}
-            className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'smart' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
+            onClick={onOpenHistory}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
           >
-            {t.smartTab}
+            <History className="w-4 h-4 text-sky-600" />
+            <span>{lang === 'zh' ? '做题历史' : 'History'}</span>
           </button>
-          <button
-            onClick={() => { setActiveTab('general'); setInputError(null); }}
-            className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'general' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {t.generalTab}
-          </button>
-          <button
-            onClick={() => { setActiveTab('standard'); setInputError(null); }}
-            className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'standard' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {t.standardTab}
-          </button>
-          <button
-            onClick={() => { setActiveTab('function'); setInputError(null); }}
-            className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === 'function' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {t.functionTab}
-          </button>
+
+          {/* Mode Switcher */}
+          <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100/90 rounded-lg">
+            <button
+              onClick={() => { setActiveTab('smart'); setInputError(null); }}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'smart' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'zh' ? '智能自然输入' : 'Smart Input'}
+            </button>
+            <button
+              onClick={() => { setActiveTab('parabola'); setInputError(null); }}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'parabola' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'zh' ? '抛物线' : 'Parabola'}
+            </button>
+            <button
+              onClick={() => { setActiveTab('ellipse'); setInputError(null); }}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'ellipse' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'zh' ? '椭圆' : 'Ellipse'}
+            </button>
+            <button
+              onClick={() => { setActiveTab('hyperbola'); setInputError(null); }}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'hyperbola' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {lang === 'zh' ? '双曲线' : 'Hyperbola'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -227,7 +238,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
           <form onSubmit={handleSolveSmart} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-800 mb-1.5">
-                {t.smartPlaceholder}
+                {lang === 'zh'
+                  ? '支持粘贴或直接输入抛物线、椭圆、双曲线任意方程（支持 Unicode 上标 y²、x² 与 LaTeX \\frac 格式）：'
+                  : 'Enter or paste any Parabola, Ellipse, or Hyperbola equation (supports Unicode y², x² and LaTeX \\frac):'}
               </label>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
@@ -235,7 +248,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
                     type="text"
                     value={naturalEq}
                     onChange={(e) => setNaturalEq(e.target.value)}
-                    placeholder="y^2 - 4y - 8x + 12 = 0"
+                    placeholder="e.g. y² - 4y - 8x + 12 = 0  or  \frac{x^2}{16} + \frac{y^2}{9} = 1  or  4x² - 9y² = 36"
                     className="w-full px-4 py-2.5 text-base bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono text-slate-900 shadow-2xs"
                   />
                 </div>
@@ -248,113 +261,40 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
                 </button>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                {t.smartHelp}
+                {lang === 'zh'
+                  ? '系统将自动判定圆锥曲线类型，展开双向配方法拆解过程并提供“为什么这样做”的数学原理解析。'
+                  : 'The system automatically classifies the conic, breaks down completing-the-square, and provides pedagogical "Why" rationales.'}
               </p>
             </div>
           </form>
         )}
 
-        {/* TAB 2: General Form with Completing the Square */}
-        {activeTab === 'general' && (
+        {/* TAB 2: Parabola General Form */}
+        {activeTab === 'parabola' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">{t.orientationLabel}</span>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="gen_orientation"
-                  checked={genOrientation === 'horizontal'}
-                  onChange={() => setGenOrientation('horizontal')}
-                  className="accent-sky-600"
-                />
-                <span>{t.horizOpt}</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="gen_orientation"
-                  checked={genOrientation === 'vertical'}
-                  onChange={() => setGenOrientation('vertical')}
-                  className="accent-sky-600"
-                />
-                <span>{t.vertOpt}</span>
-              </label>
+            <div className="text-xs sm:text-sm font-semibold text-slate-800">
+              {lang === 'zh' ? '抛物线一般式配方法拆解：' : 'Parabola General Form:'}
             </div>
-
-            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-lg text-center">
-              <div className="text-xs text-slate-500 mb-1">{t.currentEq}</div>
-              <MathView
-                math={
-                  genOrientation === 'horizontal'
-                    ? `${genA || 'A'}y^2 + (${genB || 'B'})y + (${genC || 'C'})x + (${genD || 'D'}) = 0`
-                    : `${genA || 'A'}x^2 + (${genB || 'B'})x + (${genC || 'C'})y + (${genD || 'D'}) = 0`
-                }
-                block
-                className="text-lg font-semibold text-slate-900"
-              />
-            </div>
-
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t.coeffA} ({genOrientation === 'horizontal' ? 'y²' : 'x²'})
-                </label>
-                <input
-                  type="text"
-                  value={genA}
-                  onChange={(e) => setGenA(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">A (y²)</label>
+                <input type="text" value={paraA} onChange={(e) => setParaA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t.coeffB} ({genOrientation === 'horizontal' ? 'y' : 'x'})
-                </label>
-                <input
-                  type="text"
-                  value={genB}
-                  onChange={(e) => setGenB(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y)</label>
+                <input type="text" value={paraB} onChange={(e) => setParaB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t.coeffC} ({genOrientation === 'horizontal' ? 'x' : 'y'})
-                </label>
-                <input
-                  type="text"
-                  value={genC}
-                  onChange={(e) => setGenC(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input type="text" value={paraC} onChange={(e) => setParaC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {t.coeffD}
-                </label>
-                <input
-                  type="text"
-                  value={genD}
-                  onChange={(e) => setGenD(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">D (Const)</label>
+                <input type="text" value={paraD} onChange={(e) => setParaD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
             </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => { setGenA('1'); setGenB('-4'); setGenC('-8'); setGenD('12'); }}
-                className="px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>{t.resetBtn}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleSolveGeneral}
-                className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
-              >
+            <div className="flex justify-end pt-2">
+              <button onClick={handleSolveParabolaForm} className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs">
                 <span>{t.solveBtn}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -362,135 +302,73 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
           </div>
         )}
 
-        {/* TAB 3: Standard Form */}
-        {activeTab === 'standard' && (
+        {/* TAB 3: Ellipse Form */}
+        {activeTab === 'ellipse' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-700">
-              <span className="font-semibold text-slate-900">{t.orientationLabel}</span>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="std_orientation"
-                  checked={stdOrientation === 'horizontal'}
-                  onChange={() => setStdOrientation('horizontal')}
-                  className="accent-sky-600"
-                />
-                <span><MathView math="y^2 = 2px" /> / <MathView math="y^2 = -2px" /></span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="std_orientation"
-                  checked={stdOrientation === 'vertical'}
-                  onChange={() => setStdOrientation('vertical')}
-                  className="accent-sky-600"
-                />
-                <span><MathView math="x^2 = 2py" /> / <MathView math="x^2 = -2py" /></span>
-              </label>
+            <div className="text-xs sm:text-sm font-semibold text-slate-800">
+              {lang === 'zh' ? '椭圆一般式配方法拆解：Ax² + By² + Cx + Dy + E = 0' : 'Ellipse General Form Completing the Square:'}
             </div>
-
-            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-lg text-center">
-              <div className="text-xs text-slate-500 mb-1">{t.currentEq}</div>
-              <MathView
-                math={stdOrientation === 'horizontal' ? `y^2 = ${stdCoeff || 'k'}x` : `x^2 = ${stdCoeff || 'k'}y`}
-                block
-                className="text-lg font-semibold text-slate-900"
-              />
-            </div>
-
-            <div className="max-w-md">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                {t.coeffStd}
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={stdCoeff}
-                  onChange={(e) => setStdCoeff(e.target.value)}
-                  placeholder="e.g. 8, -6, 4, 1/2"
-                  className="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={handleSolveStandard}
-                  className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <span>{t.solveBtn}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
+                <input type="text" value={elA} onChange={(e) => setElA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
+                <input type="text" value={elB} onChange={(e) => setElB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input type="text" value={elC} onChange={(e) => setElC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
+                <input type="text" value={elD} onChange={(e) => setElD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
+                <input type="text" value={elE} onChange={(e) => setElE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button onClick={handleSolveEllipseForm} className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs">
+                <span>{t.solveBtn}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* TAB 4: Function Form */}
-        {activeTab === 'function' && (
+        {/* TAB 4: Hyperbola Form */}
+        {activeTab === 'hyperbola' && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-700">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="func_orientation"
-                  checked={funcOrientation === 'vertical'}
-                  onChange={() => setFuncOrientation('vertical')}
-                  className="accent-sky-600"
-                />
-                <span><MathView math="y = ax^2 + bx + c" /></span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="func_orientation"
-                  checked={funcOrientation === 'horizontal'}
-                  onChange={() => setFuncOrientation('horizontal')}
-                  className="accent-sky-600"
-                />
-                <span><MathView math="x = ay^2 + by + c" /></span>
-              </label>
+            <div className="text-xs sm:text-sm font-semibold text-slate-800">
+              {lang === 'zh' ? '双曲线一般式配方法拆解：Ax² + By² + Cx + Dy + E = 0 (A·B < 0)' : 'Hyperbola General Form Completing the Square:'}
             </div>
-
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  a (x² / y²)
-                </label>
-                <input
-                  type="text"
-                  value={funcA}
-                  onChange={(e) => setFuncA(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
+                <input type="text" value={hyA} onChange={(e) => setHyA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  b (x / y)
-                </label>
-                <input
-                  type="text"
-                  value={funcB}
-                  onChange={(e) => setFuncB(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
+                <input type="text" value={hyB} onChange={(e) => setHyB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  c (Constant)
-                </label>
-                <input
-                  type="text"
-                  value={funcC}
-                  onChange={(e) => setFuncC(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500 font-mono"
-                />
+                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input type="text" value={hyC} onChange={(e) => setHyC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
+                <input type="text" value={hyD} onChange={(e) => setHyD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
+                <input type="text" value={hyE} onChange={(e) => setHyE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
             </div>
-
             <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={handleSolveFunction}
-                className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs"
-              >
+              <button onClick={handleSolveHyperbolaForm} className="px-5 py-2 text-xs sm:text-sm font-semibold text-white bg-sky-600 hover:bg-sky-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-xs">
                 <span>{t.solveBtn}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -511,7 +389,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
           <div className="flex items-center gap-2 mb-2.5">
             <Flame className="w-4 h-4 text-rose-500" />
             <span className="text-xs sm:text-sm font-semibold text-slate-800">
-              {t.presetsTitle}
+              {lang === 'zh'
+                ? '圆锥曲线经典真题库（抛物线 / 椭圆 / 双曲线 / Unicode / LaTeX）：'
+                : 'Conic Sections Curated Problem Bank (Parabola, Ellipse, Hyperbola, LaTeX):'}
             </span>
           </div>
 
@@ -524,10 +404,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({ onSolve, lang }) =
                 className="p-3 rounded-lg border border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/40 text-left transition-all group shadow-2xs"
               >
                 <div className="text-[11px] text-slate-500 mb-1 font-medium">{p.badge}</div>
-                <div className="text-sm font-bold text-slate-900 group-hover:text-sky-700">
+                <div className="text-sm font-bold text-slate-900 group-hover:text-sky-700 truncate">
                   <MathView math={p.latex} />
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1 line-clamp-1">{p.desc}</div>
               </button>
             ))}
           </div>

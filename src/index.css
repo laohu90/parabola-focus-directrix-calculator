@@ -1,1 +1,78 @@
 @import "tailwindcss";
+
+@layer utilities {
+  /* Animation utilities */
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slideIn {
+    animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+/* Dedicated Print Stylesheet for High-Grade PDF Export */
+@media print {
+  /* Hide non-printable navigation, controls, and widgets */
+  header,
+  footer,
+  #quiz-section,
+  #guide-section,
+  #faq-section,
+  .print-hide,
+  button,
+  select,
+  input[type="range"] {
+    display: none !important;
+  }
+
+  /* Reset body and layout for A4 print */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure steps do not break awkwardly across paper pages */
+  .step-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 12pt !important;
+  }
+
+  /* Ensure canvas renders sharply */
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Expand step details in print automatically */
+  .print-expand {
+    display: block !important;
+  }
+
+  /* High contrast border */
+  .border {
+    border-color: #cbd5e1 !important;
+  }
+
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-2xs,
+  .shadow-md {
+    box-shadow: none !important;
+  }
+}
