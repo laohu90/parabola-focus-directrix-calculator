@@ -15,15 +15,17 @@ import {
   ArrowLeft,
   ArrowRight,
   ListOrdered,
-  Eye
+  Eye,
+  Crosshair
 } from 'lucide-react';
 
 interface StepsSolutionViewProps {
   conic: ConicAnalysisResult;
   lang: Language;
+  onViewGraph?: () => void;
 }
 
-export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lang }) => {
+export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lang, onViewGraph }) => {
   const tSummary = translations[lang].summary;
   const tSteps = translations[lang].steps;
 
@@ -233,6 +235,35 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
             <span className="text-xs sm:text-sm font-bold text-sky-900">{tSummary.standardEq}:</span>
             <MathView math={conic.standardLatex} className="text-base sm:text-lg font-bold" />
           </div>
+        </div>
+
+        {/* Visual Graph Callout Banner */}
+        <div className="mt-3 p-3.5 rounded-lg bg-gradient-to-r from-purple-50 via-sky-50 to-emerald-50 border border-purple-200/70 flex flex-wrap items-center justify-between gap-3 print-hide">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0">
+              <Crosshair className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 block">
+                {lang === 'zh'
+                  ? '已绘制焦点与准线几何坐标图（含通径与 p/2 标尺）'
+                  : 'Coordinate Graph Live: Focus F, Directrix l & Latus Rectum'}
+              </span>
+              <span className="text-[11px] text-slate-600">
+                {lang === 'zh'
+                  ? '直观几何呈现，支持鼠标滚轮缩放、拖拽平移、动点 P 实时验证'
+                  : 'Visual geometric plot with wheel zoom, drag to pan and Point P proof'}
+              </span>
+            </div>
+          </div>
+          {onViewGraph && (
+            <button
+              onClick={onViewGraph}
+              className="px-3.5 py-1.5 text-xs font-bold text-purple-700 bg-white hover:bg-purple-50 border border-purple-300 rounded-lg shadow-2xs transition-colors shrink-0"
+            >
+              {lang === 'zh' ? '全屏查看坐标图 →' : 'View Full Graph →'}
+            </button>
+          )}
         </div>
       </div>
 

@@ -12,6 +12,9 @@ import { Language } from '../i18n/translations.ts';
  * Solve Parabola:
  * Horizontal: A*y^2 + B*y + C*x + D = 0  (A != 0, C != 0)
  * Vertical:   A*x^2 + B*x + C*y + D = 0  (A != 0, C != 0)
+ *
+ * Provides comprehensive, hyper-detailed step-by-step breakdown
+ * of general form to standard form transformation (一般式转标准式全流程).
  */
 export function solveParabola(
   orientation: ParabolaOrientation,
@@ -38,40 +41,48 @@ export function solveParabola(
   origEq += formatSignedTermLaTeX(D);
   origEq += ' = 0';
 
+  // Step 1: 原方程分析与各项系数定位
   steps.push({
-    title: lang === 'zh' ? '第一步：分析方程类型与主次变量' : 'Step 1: Analyze Variable Degrees & Conic Type',
-    math: origEq,
+    title: lang === 'zh' ? '第一步：分析方程类型与提取各项系数' : 'Step 1: Analyze Equation & Extract Coefficients',
+    math: `\\begin{aligned}
+      \\text{${lang === 'zh' ? '原一般方程' : 'Original Equation'}} &: ${origEq} \\\\[4pt]
+      \\text{${lang === 'zh' ? '二次变量' : 'Quadratic Variable'}} &: ${quadVar} \\quad (\\text{${lang === 'zh' ? '系数' : 'Coeff'}} A = ${formatFractionLaTeX(A)}) \\\\[4pt]
+      \\text{${lang === 'zh' ? '同侧一次项系数' : 'Linear Coeff'}} &: B = ${formatFractionLaTeX(B)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '对侧一次变量' : 'Opposite Variable'}} &: ${linVar} \\quad (\\text{${lang === 'zh' ? '系数' : 'Coeff'}} C = ${formatFractionLaTeX(C)}) \\\\[4pt]
+      \\text{${lang === 'zh' ? '常数项' : 'Constant'}} &: D = ${formatFractionLaTeX(D)}
+    \\end{aligned}`,
     note: lang === 'zh'
-      ? `方程中只有单一变量 $${quadVar}$ 存在二次方，另一变量 $${linVar}$ 为一次方。根据圆锥曲线判别定理，此类方程严格表示抛物线。`
-      : `Only variable $${quadVar}$ has degree 2, while $${linVar}$ has degree 1. Therefore, this equation represents a parabola.`,
+      ? `方程中只有单一变量 $${quadVar}$ 含有二次方，而变量 $${linVar}$ 为一次方。根据解析几何圆锥曲线分类定理，方程严格表示抛物线，其对称轴平行于 $${linVar}$ 轴（${orientation === 'horizontal' ? '水平轴向，左右开口' : '竖直轴向，上下开口'}）。`
+      : `Only $${quadVar}$ has degree 2, while $${linVar}$ is linear. This uniquely characterizes a parabola whose axis is parallel to the $${linVar}$-axis.`,
     whyExplanation: lang === 'zh'
-      ? '【为什么只有抛物线有一个二次项？】圆锥曲线的代数判别式 $\\Delta = B^2 - 4AC$。当且仅当一个变量为二次而另一个为一次时，曲线无法闭合且只有一条对称轴，因而必定为抛物线。'
-      : '[Why exactly one squared variable?] A parabola is the boundary case between ellipse and hyperbola (eccentricity e = 1). In the general conic equation, having only one squared variable ensures an open curve with a single axis of symmetry.'
+      ? '【为什么只有抛物线单二次项？】圆锥曲线一般方程 $Ax^2 + Bxy + Cy^2 + Dx + Ey + F = 0$ 中，判别式 $\\Delta = B^2 - 4AC$。当且仅当一个变量为二次而另一个为一次时，离心率 $e = 1$，曲线只向一个方向单侧无限延伸，必为抛物线。'
+      : '[Why exactly one squared variable?] A parabola is the unique conic with eccentricity e = 1, possessing a single axis of symmetry and extending unboundedly in one direction.'
   });
 
   // Step 2: 移项分拣
   const rhsLinCoeff = -C;
   const rhsConst = -D;
 
-  let step2Math = '';
-  if (A === 1) step2Math += `${quadVar}^2`;
-  else if (A === -1) step2Math += `-${quadVar}^2`;
-  else step2Math += `${formatFractionLaTeX(A)}${quadVar}^2`;
-  step2Math += formatSignedTermLaTeX(B, quadVar);
-  step2Math += ` = ${formatSignedTermLaTeX(rhsLinCoeff, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsConst)}`;
+  let step2Lhs = '';
+  if (A === 1) step2Lhs += `${quadVar}^2`;
+  else if (A === -1) step2Lhs += `-${quadVar}^2`;
+  else step2Lhs += `${formatFractionLaTeX(A)}${quadVar}^2`;
+  step2Lhs += formatSignedTermLaTeX(B, quadVar);
+
+  const step2Rhs = `${formatSignedTermLaTeX(rhsLinCoeff, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsConst)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第二步：移项分拣（隔离二次与一次变量）' : 'Step 2: Group Squared Terms on Left Side',
-    math: step2Math,
+    title: lang === 'zh' ? '第二步：移项分拣（变量隔离与跨等号变号）' : 'Step 2: Isolate Squared Variable on Left-Hand Side',
+    math: `${step2Lhs} = ${step2Rhs}`,
     note: lang === 'zh'
-      ? `将含二次变量 $${quadVar}$ 的项保留在左侧，将一次项 $${linVar}$ 及常数项移至等号右侧。`
-      : `Keep all terms of $${quadVar}$ on the left-hand side and move linear variable $${linVar}$ and constants to the right.`,
+      ? `遵循“主变量留左、次变量移右”原则：把含二次变量 $${quadVar}$ 的项保留在等号左侧；将含有一次变量 $${linVar}$ 的项与常数项移到右侧，注意符号反转（$+(${formatFractionLaTeX(C)})$ 变为 $${formatFractionLaTeX(rhsLinCoeff)}$，$+(${formatFractionLaTeX(D)})$ 变为 $${formatFractionLaTeX(rhsConst)}$）。`
+      : `Group all $${quadVar}$ terms on the left. Transpose $${linVar}$ and constants to the right, reversing their signs.`,
     whyExplanation: lang === 'zh'
-      ? '【为什么必须将二次项与一次项分离两边？】配方法的目标是将二次多项式 $Au^2 + Bu$ 转化为单一的完全平方式 $(u-k)^2$。右边需要保持为 $2p(v-h)$ 的形式，分离两端能够避免变量交叉混淆。'
-      : '[Why isolate the squared terms?] The target form is (variable - coordinate)² = 2p(other variable - coordinate). Separating variables on opposite sides prevents linear cross-interference.'
+      ? '【为什么必须将二次与一次变量分别置于等号两侧？】标准顶点式为 $(u - k)^2 = 2p(v - h)$。左侧是纯净的完全平方式，右侧是一次项因式。提前隔离避免了配方过程中一次项系数被误掺入平方项中。'
+      : '[Why isolate to opposite sides?] Standard vertex form puts the perfect square on the left and the factored linear term on the right.'
   });
 
-  // Step 3: 系数归一
+  // Step 3: 系数归一（两边同除以二次项系数 A）
   const bOverA = B / A;
   const cOverA = rhsLinCoeff / A;
   const dOverA = rhsConst / A;
@@ -81,52 +92,62 @@ export function solveParabola(
 
   if (Math.abs(A - 1) > 1e-7) {
     steps.push({
-      title: lang === 'zh' ? '第三步：两边同除以二次项系数（首项归一）' : 'Step 3: Divide by Leading Coefficient',
-      math: step3Math,
+      title: lang === 'zh' ? '第三步：两边同除以二次项系数 A（首项系数归一）' : 'Step 3: Divide by Leading Coefficient A',
+      math: `\\begin{aligned}
+        \\frac{${step2Lhs}}{${formatFractionLaTeX(A)}} &= \\frac{${step2Rhs}}{${formatFractionLaTeX(A)}} \\\\[6pt]
+        \\implies ${step3Math}
+      \\end{aligned}`,
       note: lang === 'zh'
-        ? `方程两边同时除以 $A = ${formatFractionLaTeX(A)}$，使二次项系数化为 1。`
-        : `Divide both sides by $A = ${formatFractionLaTeX(A)}$ so the leading coefficient becomes 1.`,
+        ? `两边同时除以 $A = ${formatFractionLaTeX(A)}$，使二次项 $${quadVar}^2$ 的系数严格化为 1。此时左侧一次项系数化为 $\\frac{B}{A} = ${formatFractionLaTeX(bOverA)}$，右侧一次项系数化为 $${formatFractionLaTeX(cOverA)}$，常数项化为 $${formatFractionLaTeX(dOverA)}$。`
+        : `Divide by $A = ${formatFractionLaTeX(A)}$ so the leading coefficient becomes 1, facilitating the standard square completing rule.`,
       whyExplanation: lang === 'zh'
-        ? '【为什么必须将二次项系数化为 1？】初中完全平方公式为 $(u \\pm k)^2 = u^2 \\pm 2ku + k^2$。公式要求 $u^2$ 的系数严格为 1。如果不先除以 $A$，直接加常数会导致 $(Au+k)^2 = A^2u^2 + 2Aku + k^2$，产生系数 $A^2$ 的错误！'
-        : '[Why normalize to 1?] The standard expansion (u + k)² = u² + 2ku + k² strictly assumes a unit coefficient on u². Normalizing by A eliminates distortion when calculating the constant to add.'
+        ? '【为什么必须将二次项系数化为 1？】配方基础公式是 $(u \\pm m)^2 = u^2 \\pm 2mu + m^2$。公式严格要求首项系数为 1。若不先除以 $A$，直接盲目加上 $(B/2)^2$ 会导致漏乘 $A^2$ 的致命错误！'
+        : '[Why normalize to 1?] The canonical completing-the-square identity (u + m)² = u² + 2mu + m² assumes a unit coefficient.'
     });
   }
 
-  // Step 4: 配方法核心加常数
+  // Step 4: 配方法核心拆解（拆解三部曲：一次项系数、除以2、平方）
   const halfB = bOverA / 2;
   const addConst = halfB * halfB;
 
-  let step4Math = `${quadVar}^2${formatSignedTermLaTeX(bOverA, quadVar)} + ${formatFractionLaTeX(addConst)} = `;
-  step4Math += `${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(dOverA)} + ${formatFractionLaTeX(addConst)}`;
+  let step4Lhs = `${quadVar}^2${formatSignedTermLaTeX(bOverA, quadVar)} + \\mathbf{${formatFractionLaTeX(addConst)}}`;
+  let step4Rhs = `${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(dOverA)} + \\mathbf{${formatFractionLaTeX(addConst)}}`;
 
   steps.push({
-    title: lang === 'zh' ? '第四步：配方法核心拆解（两边同时加一次项系数一半的平方）' : 'Step 4: Add (b/2)² to Both Sides',
-    math: step4Math,
+    title: lang === 'zh' ? '第四步：配方法核心拆解（计算配方常数并在两边同时加上）' : 'Step 4: Compute Completing-the-Square Constant & Add to Both Sides',
+    math: `\\begin{aligned}
+      \\text{${lang === 'zh' ? '左侧一次项系数' : 'Linear Coeff'}} \\ b' &= ${formatFractionLaTeX(bOverA)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '取其一半' : 'Half of Coeff'}} \\ \\frac{b'}{2} &= \\frac{${formatFractionLaTeX(bOverA)}}{2} = ${formatFractionLaTeX(halfB)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '计算其平方' : 'Square of Half'}} \\ \\left(\\frac{b'}{2}\\right)^2 &= \\left(${formatFractionLaTeX(halfB)}\\right)^2 = ${formatFractionLaTeX(addConst)} \\\\[6pt]
+      \\implies ${step4Lhs} &= ${step4Rhs}
+    \\end{aligned}`,
     note: lang === 'zh'
-      ? `一次项系数为 $${formatFractionLaTeX(bOverA)}$，其一半为 $${formatFractionLaTeX(halfB)}$，其平方为 $\\left(${formatFractionLaTeX(halfB)}\\right)^2 = ${formatFractionLaTeX(addConst)}$。两边同时加上该数值。`
-      : `Linear coefficient is $${formatFractionLaTeX(bOverA)}$. Half is $${formatFractionLaTeX(halfB)}$, and square is $${formatFractionLaTeX(addConst)}$. Add to both sides.`,
+      ? `配方法精髓：取一次项系数 $${formatFractionLaTeX(bOverA)}$ 的一半得到 $${formatFractionLaTeX(halfB)}$，再平方得到常数 $${formatFractionLaTeX(addConst)}$。根据等式基本性质，方程两边必须同时加上该数值以保持平衡！`
+      : `Take half of linear coefficient ($${formatFractionLaTeX(halfB)}$) and square it ($${formatFractionLaTeX(addConst)}$). Add to both sides.`,
     whyExplanation: lang === 'zh'
-      ? '【为什么加的是“一次项系数一半的平方”？】对比 $u^2 + 2ku + k^2 = (u + k)^2$ 与 $u^2 + b u$：交叉项 $2k = b \\implies k = \\frac{b}{2}$。为了凑成完全平方式，常数项必须补全 $k^2 = (b/2)^2$！根据等式守恒性质，右边也必须加上相同的数值。'
-      : '[Why add (b/2)²?] Comparing u² + bu with (u + k)² = u² + 2ku + k², the cross-term demands 2k = b, which forces k = b/2. Thus the missing constant to close the square is exactly (b/2)².',
-    highlight: true
+      ? '【为什么加的是“一次项系数一半的平方”？】由 $(u + m)^2 = u^2 + 2mu + m^2$，交叉项 $2m = b\' \\implies m = b\'/2$。要补齐末尾常数使其成为完全平方式，所缺常数只能是 $m^2 = (b\'/2)^2$！'
+      : '[Why (b/2)²?] Expanding (u + m)² produces cross-term 2mu. Equating 2m = b forces m = b/2, making m² = (b/2)² the exact missing constant.'
   });
 
-  // Step 5: 完全平方式收拢
+  // Step 5: 完全平方式因式分解与右边常数合并
   const rhsCombinedConst = dOverA + addConst;
   const quadShift = -halfB;
 
-  let step5Math = `${formatShiftTerm(quadVar, quadShift)}^2 = `;
-  step5Math += `${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsCombinedConst)}`;
+  let step5Math = `\\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2 = ${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsCombinedConst)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第五步：左边化完全平方式，右边合并常数项' : 'Step 5: Factor Perfect Square & Combine Constants',
-    math: step5Math,
+    title: lang === 'zh' ? '第五步：左边逆向收拢为完全平方式，右边通分合并常数' : 'Step 5: Factor Left Side into Perfect Square & Combine Constants',
+    math: `\\begin{aligned}
+      \\text{${lang === 'zh' ? '左侧因式分解' : 'Left Factorization'}} &: ${quadVar}^2 ${formatSignedTermLaTeX(bOverA, quadVar)} + ${formatFractionLaTeX(addConst)} = \\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2 \\\\[6pt]
+      \\text{${lang === 'zh' ? '右侧常数合并' : 'Right Simplification'}} &: ${formatFractionLaTeX(dOverA)} + ${formatFractionLaTeX(addConst)} = ${formatFractionLaTeX(rhsCombinedConst)} \\\\[6pt]
+      \\implies ${step5Math}
+    \\end{aligned}`,
     note: lang === 'zh'
-      ? `左边利用完全平方公式收拢为 $${formatShiftTerm(quadVar, quadShift)}^2$；右边合并常数项得 $${formatFractionLaTeX(rhsCombinedConst)}$。`
-      : `Left side contracts to $${formatShiftTerm(quadVar, quadShift)}^2$; right side combines constants to $${formatFractionLaTeX(rhsCombinedConst)}$.`,
+      ? `左边利用完全平方公式逆向收拢为 $\\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2$；右边合并常数项：$${formatFractionLaTeX(dOverA)} + ${formatFractionLaTeX(addConst)} = ${formatFractionLaTeX(rhsCombinedConst)}$。`
+      : `Left side contracts to $\\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2$. Right side constants combine into $${formatFractionLaTeX(rhsCombinedConst)}$.`,
     whyExplanation: lang === 'zh'
-      ? '【完全平方的几何意义】完全平方式 $(u - k)^2$ 表示变量 $u$ 偏离其对称轴基准线 $u = k$ 的相对位移，是确定抛物线顶点坐标的基石。'
-      : '[Geometric meaning] The factor (u - k)² represents displacement from the vertex axis u = k.'
+      ? '【完全平方因式与顶点坐标的直接对应】代数式 $(y - k)^2$ 只有在 $y = k$ 时才取得最小值 0，这正是抛物线轴线与对称中心（顶点坐标）的代数本质。'
+      : '[Geometric essence] The term (y - k)² vanishes at y = k, pinpointing the vertex axis line.'
   });
 
   // Step 6: 提取一次项系数，化为顶点标准式
@@ -138,14 +159,17 @@ export function solveParabola(
   else step6Math += `${formatFractionLaTeX(cOverA)} ${formatShiftTerm(linVar, linShift)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第六步：提取一次项系数，化为顶点标准式' : 'Step 6: Factor Out Linear Coefficient (Standard Form)',
-    math: step6Math,
+    title: lang === 'zh' ? '第六步：提取右侧一次项系数，化为标准顶点方程' : 'Step 6: Factor Out Linear Coefficient to Form Standard Form',
+    math: `\\begin{aligned}
+      \\text{${lang === 'zh' ? '提取公因式' : 'Factor out'}} \\ ${formatFractionLaTeX(cOverA)} &: ${formatSignedTermLaTeX(cOverA, linVar).trim()} ${formatSignedTermLaTeX(rhsCombinedConst)} = ${formatFractionLaTeX(cOverA)}\\left(${linVar} - \\left(\\frac{-${formatFractionLaTeX(rhsCombinedConst)}}{${formatFractionLaTeX(cOverA)}}\\right)\\right) \\\\[6pt]
+      \\implies ${step6Math}
+    \\end{aligned}`,
     note: lang === 'zh'
-      ? `提取一次项系数 $${formatFractionLaTeX(cOverA)}$，直接读出顶点坐标与焦参数。`
-      : `Factor out $${formatFractionLaTeX(cOverA)}$ to reveal the vertex coordinates and focal width.`,
+      ? `将右侧一次项系数 $${formatFractionLaTeX(cOverA)}$ 整体提取出来，使括号内变量 $${linVar}$ 的系数严格为 1，直接化为标准顶点式：$(${quadVar} - k)^2 = 2p(${linVar} - h)$。`
+      : `Factor out $${formatFractionLaTeX(cOverA)}$ so that $${linVar}$ has unit coefficient inside parentheses, matching standard form $(u-k)^2 = 2p(v-h)$.`,
     whyExplanation: lang === 'zh'
-      ? '【为什么必须在括号内让一次变量系数为 1？】标准方程 $(u - k)^2 = 2p(v - h)$ 要求括号内必须是 $(v - h)$。只有把系数提取到括号外，才能准确读出顶点坐标 $h$ 与真实的焦弦通径长 $2p$。'
-      : '[Why factor out the coefficient?] Standard form requires (v - h) with unit coefficient inside the parentheses so that h directly represents the vertex coordinate.'
+      ? '【为什么括号内必须保持为 (v - h)？】如果不把系数提出来，直接读出的常数并不是真正的顶点坐标！只有当一次项形式为 $(v - h)$ 时，$h$ 才真正代表抛物线顶点的坐标。'
+      : '[Why must variable have unit coefficient?] The vertex coordinate h can only be read directly when the factor inside is strictly (v - h).'
   });
 
   const twoP = Math.abs(cOverA);
@@ -166,62 +190,83 @@ export function solveParabola(
     direction = cOverA > 0 ? 'up' : 'down';
   }
 
-  // Step 7: 提取参数 p 与 p/2
+  // Step 7: 对应标准型参数并计算通径与焦点距
+  const dirCn = direction === 'right' ? '向右 (x 轴正向)' : direction === 'left' ? '向左 (x 轴负向)' : direction === 'up' ? '向上 (y 轴正向)' : '向下 (y 轴负向)';
+  const dirEn = direction === 'right' ? 'Right (+x)' : direction === 'left' ? 'Left (-x)' : direction === 'up' ? 'Up (+y)' : 'Down (-y)';
+
   steps.push({
-    title: lang === 'zh' ? '第七步：提取焦参数 p 与半距 p/2' : 'Step 7: Extract Parameter p and Semi-Distance p/2',
-    math: `2p = |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\implies p = ${formatFractionLaTeX(p)}, \\quad \\frac{p}{2} = ${formatFractionLaTeX(halfP)}`,
+    title: lang === 'zh' ? '第七步：与标准方程对照，提取顶点与焦参数' : 'Step 7: Compare with Standard Form & Extract Parameters',
+    math: `\\begin{aligned}
+      \\text{${lang === 'zh' ? '标准模板' : 'Standard Template'}} &: (${quadVar} - k)^2 = \\pm 2p(${linVar} - h) \\\\[4pt]
+      \\text{${lang === 'zh' ? '顶点坐标' : 'Vertex Coordinates'}} &: V(h, k) = \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)}\\right) \\\\[4pt]
+      \\text{${lang === 'zh' ? '通径长' : 'Latus Rectum'}} \\ 2p &= |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '焦参数' : 'Focal Parameter'}} \\ p &= \\frac{2p}{2} = \\frac{${formatFractionLaTeX(twoP)}}{2} = ${formatFractionLaTeX(p)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '半距（顶点至焦点/准线）' : 'Half-Distance (p/2)'}} \\ \\frac{p}{2} &= \\frac{${formatFractionLaTeX(p)}}{2} = ${formatFractionLaTeX(halfP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '开口方向' : 'Opening Direction'}} &: \\mathbf{${lang === 'zh' ? dirCn : dirEn}}
+    \\end{aligned}`,
     note: lang === 'zh'
-      ? `一次项系数绝对值等于通径长 $2p = ${formatFractionLaTeX(twoP)}$，从而 $p = ${formatFractionLaTeX(p)}$。顶点到焦点与准线的距离各为 $\\frac{p}{2} = ${formatFractionLaTeX(halfP)}$。`
-      : `Coefficient magnitude is $2p = ${formatFractionLaTeX(twoP)}$, so $p = ${formatFractionLaTeX(p)}$. The vertex-to-focus distance is $p/2 = ${formatFractionLaTeX(halfP)}$.`,
+      ? `通径长即一次项系数的绝对值 $2p = ${formatFractionLaTeX(twoP)}$；由此解得焦参数 $p = ${formatFractionLaTeX(p)}$。顶点到焦点与准线的距离各为半步 $\\frac{p}{2} = ${formatFractionLaTeX(halfP)}$。`
+      : `Latus rectum $2p = ${formatFractionLaTeX(twoP)}$, parameter $p = ${formatFractionLaTeX(p)}$, and focal distance $p/2 = ${formatFractionLaTeX(halfP)}$.`,
     whyExplanation: lang === 'zh'
-      ? '【为什么到顶点的距离是 p/2 而不是 p？】焦参数 $p$ 是焦点到准线的“全长距离”。因为顶点处于焦点与准线的对称中点，中点平分线段，所以顶点到两边的距离各占一半，即 $p/2$！这是解析几何考试丢分最多的陷阱。'
-      : '[Why is distance to vertex p/2 and not p?] The parameter p is the total distance between Focus and Directrix line. Because the vertex sits precisely at the midpoint, the distance from vertex to either is half: p/2.'
+      ? '【避坑警示：参数 p 与 p/2 的区别】解析几何考试中超过 40% 的错解是因为将焦参数 $p$ 误当作顶点到焦点的距离！请牢记口诀：“各距半步，相隔整步”——焦点到准线整距为 $p$，而顶点正居其中，到两边各为 $p/2$！'
+      : '[Critical Exam Trap: p vs p/2] The parameter p is the distance between Focus and Directrix. The distance from vertex to focus is strictly half: p/2.'
   });
 
   let focusX = h, focusY = k, directrixVal = 0, directrixType: 'x' | 'y' = 'x', axisVal = 0, axisType: 'x' | 'y' = 'y';
+  let l1X = h, l1Y = k, l2X = h, l2Y = k;
+
   if (direction === 'right') {
     focusX = h + halfP;
     directrixType = 'x';
     directrixVal = h - halfP;
     axisType = 'y';
     axisVal = k;
+    l1X = focusX; l1Y = k + p;
+    l2X = focusX; l2Y = k - p;
   } else if (direction === 'left') {
     focusX = h - halfP;
     directrixType = 'x';
     directrixVal = h + halfP;
     axisType = 'y';
     axisVal = k;
+    l1X = focusX; l1Y = k + p;
+    l2X = focusX; l2Y = k - p;
   } else if (direction === 'up') {
     focusY = k + halfP;
     directrixType = 'y';
     directrixVal = k - halfP;
     axisType = 'x';
     axisVal = h;
+    l1X = h + p; l1Y = focusY;
+    l2X = h - p; l2Y = focusY;
   } else {
     focusY = k - halfP;
     directrixType = 'y';
     directrixVal = k + halfP;
     axisType = 'x';
     axisVal = h;
+    l1X = h + p; l1Y = focusY;
+    l2X = h - p; l2Y = focusY;
   }
 
   const directrixLatex = `${directrixType} = ${formatFractionLaTeX(directrixVal)}`;
   const axisLatex = `${axisType} = ${formatFractionLaTeX(axisVal)}`;
 
+  // Step 8: 焦点坐标与准线方程严格计算
   steps.push({
-    title: lang === 'zh' ? '第八步：确定焦点坐标与准线方程' : 'Step 8: Compute Focus Coordinates & Directrix Equation',
+    title: lang === 'zh' ? '第八步：确定焦点坐标、准线方程与通径端点' : 'Step 8: Compute Focus, Directrix & Latus Endpoints',
     math: `\\begin{aligned}
-      \\text{${lang === 'zh' ? '顶点' : 'Vertex'} } V &: \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)}\\right) \\\\[6pt]
-      \\text{${lang === 'zh' ? '焦点' : 'Focus'} } F &: \\left(${formatFractionLaTeX(focusX)},\\ ${formatFractionLaTeX(focusY)}\\right) \\\\[6pt]
-      \\text{${lang === 'zh' ? '准线方程' : 'Directrix'} } &: ${directrixLatex} \\\\[6pt]
-      \\text{${lang === 'zh' ? '对称轴' : 'Axis'} } &: ${axisLatex}
+      \\text{${lang === 'zh' ? '焦点' : 'Focus'}} \\ F &: \\left(${formatFractionLaTeX(focusX)},\\ ${formatFractionLaTeX(focusY)}\\right) \\\\[4pt]
+      \\text{${lang === 'zh' ? '准线方程' : 'Directrix'}} \\ l &: ${directrixLatex} \\\\[4pt]
+      \\text{${lang === 'zh' ? '对称轴' : 'Axis of Symmetry'}} &: ${axisLatex} \\\\[4pt]
+      \\text{${lang === 'zh' ? '通径端点' : 'Latus Rectum Ends'}} &: L_1\\left(${formatFractionLaTeX(l1X)}, ${formatFractionLaTeX(l1Y)}\\right), \\ L_2\\left(${formatFractionLaTeX(l2X)}, ${formatFractionLaTeX(l2Y)}\\right)
     \\end{aligned}`,
     note: lang === 'zh'
-      ? `顶点为基准点。焦点在抛物线凹侧内部（偏移 $+p/2$），准线在凸侧背部（偏移 $-p/2$）。准线必须书写为直线方程形式。`
-      : `Vertex is the origin base. Focus is inside the curve (+p/2), and directrix is outside behind the vertex (-p/2).`,
+      ? `以顶点 $V(${formatFractionLaTeX(h)}, ${formatFractionLaTeX(k)})$ 为基准：焦点向开口凹侧偏移 $\\frac{p}{2} = ${formatFractionLaTeX(halfP)}$；准线向开口背侧退后 $\\frac{p}{2}$，必须以直线方程形式书写！`
+      : `Based at vertex $V$: Focus shifts inside along the axis (+p/2), and directrix line sits behind the vertex (-p/2).`,
     whyExplanation: lang === 'zh'
-      ? '【为什么开口方向由一次项系数正负决定？】“一次定轴，符号定方”。因为平方项永远 $\\ge 0$，所以一次项 $(v - h)$ 的符号必须与外围系数相同才能保证乘积非负，因此图像只能向系数的正/负半轴延伸。'
-      : '[Why does the sign govern opening direction?] Because a squared term (u - k)² is always non-negative (≥ 0), the linear factor must share the same sign as the outer coefficient. Thus the parabola can only extend in that direction.'
+      ? '【解题口诀应用】“焦点在内，准线在后；各距半步，相隔整步”。准线是几何直线，填空题中必须写为完整直线方程形式（如 x = -1），只写数值 -1 会直接被扣分。'
+      : '[Mnemonic] Focus is inside the curve, directrix is behind the vertex; each sits at distance p/2 from vertex.'
   });
 
   // Domain & Range
@@ -288,7 +333,6 @@ export function solveEllipse(
   });
 
   // Step 2: 移项分拣与提取公因式
-  // A(x^2 + C/A x) + B(y^2 + D/B y) = -E
   const cOverA = C / A;
   const dOverB = D / B;
   const rhs1 = -E;
@@ -309,11 +353,10 @@ export function solveEllipse(
 
   // Step 3: 核心配方（分别加常数）
   const halfC = cOverA / 2;
-  const addX = halfC * halfC; // added inside x bracket
+  const addX = halfC * halfC;
   const halfD = dOverB / 2;
-  const addY = halfD * halfD; // added inside y bracket
+  const addY = halfD * halfD;
 
-  // Total added to RHS: A * addX + B * addY
   const addedRHS = A * addX + B * addY;
   const rhsTotal = rhs1 + addedRHS;
 
@@ -451,20 +494,12 @@ export function solveHyperbola(
   E: number,
   lang: Language = 'en'
 ): ConicAnalysisResult {
-  // A and B have opposite signs
   if (A * B >= 0) {
     throw new Error(lang === 'zh' ? '双曲线方程的二次项系数 A 与 B 必须异号' : 'Hyperbola quadratic coefficients A and B must have opposite signs.');
   }
 
   const steps: StepExplanation[] = [];
-  const isXPositive = A > 0;
 
-  // Let positive coeff be posCoeff, negative be negCoeff
-  const posA = Math.abs(A);
-  const posB = Math.abs(B);
-
-  // Group terms
-  // If A > 0 and B < 0: A(x^2 + C/A x) - |B|(y^2 - D/|B| y) = -E
   const cOverA = C / A;
   const dOverB = D / B;
   const rhs1 = -E;
@@ -474,7 +509,6 @@ export function solveHyperbola(
   const halfY = dOverB / 2;
   const addY = halfY * halfY;
 
-  // Added to RHS: A * addX + B * addY (note B is negative!)
   const addedRHS = A * addX + B * addY;
   const rhsTotal = rhs1 + addedRHS;
 
@@ -498,14 +532,11 @@ export function solveHyperbola(
       : '[Why hyperbola?] The subtraction term allows variables to grow unboundedly toward asymptotes, forming two open branches.'
   });
 
-  // Step 2 & 3: 配方步骤
   let step3Math = `${formatFractionLaTeX(A)}\\left(x ${formatSignedTermLaTeX(-h)}\\right)^2 + ${formatFractionLaTeX(B)}\\left(y ${formatSignedTermLaTeX(-k)}\\right)^2 = ${formatFractionLaTeX(rhsTotal)}`;
 
-  // Divide by rhsTotal
   const termXDenom = rhsTotal / A;
   const termYDenom = rhsTotal / B;
 
-  // One of termXDenom or termYDenom will be positive, the other negative
   const xIsTransverse = termXDenom > 0;
   const aSq = Math.abs(xIsTransverse ? termXDenom : termYDenom);
   const bSq = Math.abs(xIsTransverse ? termYDenom : termXDenom);
@@ -549,8 +580,6 @@ export function solveHyperbola(
     v2Y = k + semiA;
   }
 
-  // Asymptotes
-  const slope = semiB / semiA;
   const asymp1 = xIsTransverse
     ? `y ${formatSignedTermLaTeX(-k)} = \\frac{${formatFractionLaTeX(semiB)}}{${formatFractionLaTeX(semiA)}}\\left(x ${formatSignedTermLaTeX(-h)}\\right)`
     : `y ${formatSignedTermLaTeX(-k)} = \\frac{${formatFractionLaTeX(semiA)}}{${formatFractionLaTeX(semiB)}}\\left(x ${formatSignedTermLaTeX(-h)}\\right)`;
