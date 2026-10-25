@@ -5,18 +5,35 @@
   @keyframes slideIn {
     from {
       transform: translateX(100%);
+      opacity: 0;
     }
     to {
       transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
   .animate-slideIn {
     animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
 }
 
-/* Dedicated Print Stylesheet for High-Grade PDF Export */
+/* Dedicated Print Stylesheet for High-Grade PDF Export & Clean Paper Printing */
 @media print {
   /* Hide non-printable navigation, controls, and widgets */
   header,
@@ -25,8 +42,10 @@
   #guide-section,
   #faq-section,
   .print-hide,
+  .print\:hidden,
   button,
   select,
+  input,
   input[type="range"] {
     display: none !important;
   }
@@ -37,26 +56,50 @@
     color: #000000 !important;
     font-size: 11pt !important;
     line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 10mm 15mm !important;
   }
 
   main {
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Unconstrain grid columns so the solution takes 100% full paper width */
+  .grid {
+    display: block !important;
+  }
+
+  .lg\:col-span-7,
+  .lg\:col-span-8,
+  .lg\:col-span-5,
+  .lg\:col-span-12 {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-basis: 100% !important;
   }
 
   /* Ensure steps do not break awkwardly across paper pages */
   .step-card {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin-bottom: 12pt !important;
+    margin-bottom: 14pt !important;
+    border-bottom: 1px solid #cbd5e1 !important;
   }
 
-  /* Ensure canvas renders sharply */
+  /* Keep formula blocks intact */
+  .katex-display,
   svg {
     max-width: 100% !important;
-    height: auto !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force display of print elements */
+  .print\:block {
+    display: block !important;
   }
 
   /* Expand step details in print automatically */
@@ -72,7 +115,10 @@
   .shadow-xs,
   .shadow-sm,
   .shadow-2xs,
-  .shadow-md {
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
     box-shadow: none !important;
   }
 }

@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ConicAnalysisResult } from '../utils/conicTypes.ts';
 import { formatFractionLaTeX } from '../utils/fraction.ts';
 import { MathView } from './MathView.tsx';
 import { Language, translations } from '../i18n/translations.ts';
 import {
   Check,
+  CheckCircle2,
   Copy,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
   BookOpen,
   Printer,
@@ -15,8 +14,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ListOrdered,
-  Eye,
-  Crosshair
+  Crosshair,
+  X
 } from 'lucide-react';
 
 interface StepsSolutionViewProps {
@@ -25,11 +24,43 @@ interface StepsSolutionViewProps {
   onViewGraph?: () => void;
 }
 
+const copyToastMessages: Record<Language, { title: string; desc: string; buttonCopied: string }> = {
+  zh: {
+    title: '完整解题报告已成功复制到剪贴板！',
+    desc: '包含标准方程、核心几何参量（焦点/准线/通径）及配方法详细推导步骤。可直接粘贴至草稿纸、Word 或学习交流群。',
+    buttonCopied: '已复制解题报告！'
+  },
+  en: {
+    title: 'Full Solution Report Copied to Clipboard!',
+    desc: 'Includes standard equation, key parameters (foci/directrix/latus rectum), and completing-the-square steps.',
+    buttonCopied: 'Solution Copied!'
+  },
+  es: {
+    title: '¡Informe de solución copiado al portapapeles!',
+    desc: 'Incluye la ecuación canónica, parámetros geométricos clave y los pasos completos de deducción.',
+    buttonCopied: '¡Copiado con éxito!'
+  },
+  fr: {
+    title: 'Rapport complet copié dans le presse-papiers !',
+    desc: 'Comprend la forme canonique, les foyers/directrice et les étapes détaillées de complétion du carré.',
+    buttonCopied: 'Rapport copié !'
+  },
+  pt: {
+    title: 'Relatório completo copiado para a área de transferência!',
+    desc: 'Inclui a equação padrão, parâmetros geométricos e etapas detalhadas de resolução.',
+    buttonCopied: 'Copiado com sucesso!'
+  }
+};
+
 export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lang, onViewGraph }) => {
   const tSummary = translations[lang].summary;
   const tSteps = translations[lang].steps;
+  const toastText = copyToastMessages[lang] || copyToastMessages.en;
 
   const [copied, setCopied] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const toastTimerRef = useRef<number | null>(null);
+
   const [viewMode, setViewMode] = useState<'all' | 'stepper'>('all');
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [expandedWhy, setExpandedWhy] = useState<Record<number, boolean>>({ 0: true, 1: true, 2: true, 3: true });
@@ -38,17 +69,90 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
     setExpandedWhy((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  const copySummary = () => {
-    let text = `【Conic Section Solution / 圆锥曲线求解报告】\n`;
-    text += `Type: ${conic.conicType.toUpperCase()}\n`;
-    text += `Standard Form: ${conic.standardLatex}\n`;
-    text += `Center/Vertex: (${conic.centerOrVertex.x}, ${conic.centerOrVertex.y})\n`;
-    text += `Foci: ${conic.foci.map((f) => `(${f.x}, ${f.y})`).join(', ')}\n`;
-    text += `Eccentricity: ${conic.eccentricity.latex}\n`;
-    text += `Latus Rectum: ${conic.latusRectum.latex}\n`;
-    navigator.clipboard.writeText(text);
+  const copySummary = async () => {
+    const conicTypeLabels: Record<string, string> = {
+      parabola: lang === 'zh' ? '抛物线' : 'Parabola',
+      ellipse: lang === 'zh' ? '椭圆' : 'Ellipse',
+      hyperbola: lang === 'zh' ? '双曲线' : 'Hyperbola'
+    };
+
+    let text = `========================================\n`;
+    text += `【${lang === 'zh' ? '圆锥曲线解析几何解题与配方报告' : 'Conic Section Analytic Geometry & Solution Report'}】\n`;
+    text += `========================================\n\n`;
+    text += `${lang === 'zh' ? '曲线类型' : 'Conic Type'}: ${conicTypeLabels[conic.conicType] || conic.conicType.toUpperCase()}\n`;
+    text += `${lang === 'zh' ? '标准方程' : 'Standard Equation'}: ${conic.standardLatex}\n`;
+    if (conic.rawEquation) {
+      text += `${lang === 'zh' ? '输入方程' : 'Input Equation'}: ${conic.rawEquation}\n`;
+    }
+    text += `\n----------------------------------------\n`;
+    text += `${lang === 'zh' ? '【核心几何特征量】' : '【KEY GEOMETRIC PARAMETERS】'}\n`;
+    text += `• ${conic.conicType === 'parabola' ? (lang === 'zh' ? '顶点坐标 V' : 'Vertex V') : (lang === 'zh' ? '中心坐标 O' : 'Center O')}: (${conic.centerOrVertex.x}, ${conic.centerOrVertex.y})\n`;
+    text += `• ${lang === 'zh' ? '焦点坐标 F' : 'Foci F'}: ${conic.foci.map((f) => `${f.label}(${f.x}, ${f.y})`).join(', ')}\n`;
+    text += `• ${tSummary.eccentricity}: ${conic.eccentricity.latex} (${conic.conicType === 'parabola' ? 'e = 1' : conic.conicType === 'ellipse' ? '0 < e < 1' : 'e > 1'})\n`;
+    text += `• ${tSummary.latusRectum}: ${conic.latusRectum.latex} ≈ ${conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}\n`;
+    if (conic.directrices.length > 0) {
+      text += `• ${tSummary.directrix}: ${conic.directrices.map((d) => d.latex).join('; ')}\n`;
+    }
+    if (conic.asymptotes && conic.asymptotes.length > 0) {
+      text += `• ${lang === 'zh' ? '渐近线' : 'Asymptotes'}: ${conic.asymptotes.map((a) => a.latex).join(', ')}\n`;
+    }
+    text += `• ${tSummary.domain}: x in ${conic.domainLatex}\n`;
+    text += `• ${tSummary.range}: y in ${conic.rangeLatex}\n`;
+
+    text += `\n----------------------------------------\n`;
+    text += `${lang === 'zh' ? '【配方法详细推导步骤】' : '【STEP-BY-STEP COMPLETING THE SQUARE DERIVATION】'}\n`;
+    conic.steps.forEach((step, idx) => {
+      text += `\n[${lang === 'zh' ? '第 ' + (idx + 1) + ' 步' : 'Step ' + (idx + 1)}] ${step.title}\n`;
+      text += `   ${lang === 'zh' ? '数学表达式' : 'Formula'}: ${step.math}\n`;
+      if (step.note) {
+        text += `   ${lang === 'zh' ? '说明' : 'Note'}: ${step.note}\n`;
+      }
+      if (step.whyExplanation) {
+        text += `   ${lang === 'zh' ? '为什么这样做' : 'Why'}: ${step.whyExplanation}\n`;
+      }
+    });
+
+    text += `\n========================================\n`;
+    text += `${lang === 'zh' ? '求解器网址' : 'Generated by'}: https://parabola-focus-directrix-calculator.formulacalckit.com\n`;
+
+    // Attempt navigator.clipboard first, with fallback to hidden textarea
+    let success = false;
+    if (navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        success = true;
+      } catch (err) {
+        console.warn('Clipboard writeText failed, trying fallback...', err);
+      }
+    }
+    if (!success) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (e) {
+        console.error('Fallback copy command failed', e);
+      }
+    }
+
+    // Trigger visual feedback (both inline button and prominent floating toast)
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setShowToast(true);
+
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      setShowToast(false);
+    }, 3500);
   };
 
   const handlePrint = () => {
@@ -84,20 +188,83 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
 
   return (
     <div className="space-y-6">
-      {/* Printable Document Header (Only shown during printing) */}
+      {/* High-visibility Floating Toast Notification when Solution is copied */}
+      {showToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 right-4 sm:right-8 z-50 flex items-start gap-3 bg-slate-900/95 backdrop-blur-md text-white px-5 py-4 rounded-xl shadow-2xl border border-slate-700 max-w-sm sm:max-w-md animate-slideIn print:hidden"
+        >
+          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-md">
+            <Check className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-sm sm:text-base text-white">
+                {toastText.title}
+              </span>
+              <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-mono font-bold px-1.5 py-0.5 rounded uppercase">
+                {lang === 'zh' ? '已复制' : 'Copied'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {toastText.desc}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowToast(false)}
+            className="text-slate-400 hover:text-white p-1 rounded transition-colors -mr-1"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Printable Document Header (Only shown during printing / PDF export) */}
       <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">
-          {lang === 'zh' ? '圆锥曲线解析几何解题报告' : 'Conic Sections Step-by-Step Analytic Solution Report'}
-        </h1>
-        <div className="text-sm text-slate-600 mt-1 flex justify-between">
-          <span>{lang === 'zh' ? '曲线类型' : 'Conic Type'}: {conicTypeNames[conic.conicType]}</span>
-          <span>{lang === 'zh' ? '标准方程' : 'Standard Form'}: {conic.standardLatex}</span>
-          <span>{new Date().toLocaleDateString()}</span>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              {lang === 'zh' ? '圆锥曲线解析几何解题与配方报告' : 'Conic Section Step-by-Step Analytic Geometry Report'}
+            </h1>
+            <p className="text-xs text-slate-600 mt-1">
+              {lang === 'zh' ? '公式计算器在线平台' : 'Online Conic & Parabola Solver'}: https://parabola-focus-directrix-calculator.formulacalckit.com
+            </p>
+          </div>
+          <div className="text-right text-xs text-slate-600 font-mono">
+            <div className="font-bold text-slate-900">{new Date().toLocaleDateString()}</div>
+            <div className="uppercase font-semibold text-slate-700">{conicTypeNames[conic.conicType]}</div>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded border border-slate-300">
+          <div>
+            <strong className="text-slate-800">{lang === 'zh' ? '输入方程' : 'Input Equation'}:</strong>{' '}
+            <span className="font-mono">{conic.rawEquation || conic.standardLatex}</span>
+          </div>
+          <div>
+            <strong className="text-slate-800">{lang === 'zh' ? '标准方程' : 'Standard Form'}:</strong>{' '}
+            <span className="font-mono">{conic.standardLatex}</span>
+          </div>
         </div>
       </div>
 
       {/* Quick Summary Grid */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 shadow-xs">
+        {/* Inline copy feedback banner */}
+        {copied && (
+          <div className="mb-4 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between animate-fadeIn print:hidden">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{toastText.title}</span>
+            </div>
+            <span className="text-[11px] text-emerald-600 font-normal">
+              {lang === 'zh' ? '已包含全部配方演算步骤' : 'Full steps included'}
+            </span>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-sky-600" />
@@ -116,12 +283,17 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
           <div className="flex items-center gap-2 print-hide">
             <button
               onClick={copySummary}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-2xs"
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 shadow-2xs ${
+                copied
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 ring-2 ring-emerald-300 shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+              }`}
+              title={lang === 'zh' ? '复制完整解题步骤与参数' : 'Copy full solution report'}
             >
               {copied ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span className="text-emerald-700">{tSummary.copied}</span>
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                  <span>{toastText.buttonCopied}</span>
                 </>
               ) : (
                 <>
@@ -133,6 +305,7 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-2xs"
+              title={lang === 'zh' ? '打印或另存为 PDF' : 'Print or Save as PDF'}
             >
               <Printer className="w-4 h-4" />
               <span>{tSummary.printBtn}</span>
@@ -343,76 +516,74 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
           </div>
         </div>
 
-        {/* MODE 1: ALL STEPS VIEW */}
-        {viewMode === 'all' && (
-          <div className="divide-y divide-slate-100">
-            {conic.steps.map((step, idx) => (
-              <div
-                key={idx}
-                id={`step-card-${idx}`}
-                className={`step-card p-4 sm:p-5 transition-all rounded-none ${
-                  step.highlight ? 'bg-sky-50/30' : 'hover:bg-slate-50/40'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold flex items-center justify-center shrink-0">
-                      {idx + 1}
-                    </span>
-                    <h4 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                      {step.title}
-                    </h4>
-                  </div>
-                  {step.highlight && (
-                    <span className="text-xs font-semibold text-sky-700 bg-sky-100/70 border border-sky-200 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                      {tSteps.coreBadge}
-                    </span>
-                  )}
+        {/* MODE 1: ALL STEPS VIEW (always rendered in print mode, and visible on screen when viewMode === 'all') */}
+        <div className={`divide-y divide-slate-100 ${viewMode !== 'all' ? 'hidden print:block' : ''}`}>
+          {conic.steps.map((step, idx) => (
+            <div
+              key={idx}
+              id={`step-card-${idx}`}
+              className={`step-card p-4 sm:p-5 transition-all rounded-none ${
+                step.highlight ? 'bg-sky-50/30' : 'hover:bg-slate-50/40'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3 mb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs sm:text-sm font-bold flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </span>
+                  <h4 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+                    {step.title}
+                  </h4>
                 </div>
-
-                <div className="pl-8 sm:pl-8 space-y-2.5">
-                  <div className="bg-white border border-slate-200/90 rounded-lg p-3.5 my-2 shadow-2xs">
-                    <MathView math={step.math} block className="text-base sm:text-lg" />
-                  </div>
-
-                  {step.note && (
-                    <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                      {step.note}
-                    </p>
-                  )}
-
-                  {/* Expandable Pedagogical "WHY" block */}
-                  {step.whyExplanation && (
-                    <div className="rounded-lg bg-amber-50/70 border border-amber-200/90 p-3 sm:p-3.5 text-xs sm:text-sm text-amber-950">
-                      <div
-                        onClick={() => toggleWhy(idx)}
-                        className="flex items-center justify-between cursor-pointer font-bold text-amber-900 select-none"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span>{lang === 'zh' ? '为什么这样做？（数学原理与考点剖析）' : 'Why do this? (Mathematical Rationale)'}</span>
-                        </div>
-                        <span className="text-xs text-amber-700 font-semibold print-hide">
-                          {expandedWhy[idx] ? (lang === 'zh' ? '收起' : 'Hide') : (lang === 'zh' ? '展开详解' : 'Show')}
-                        </span>
-                      </div>
-
-                      {(expandedWhy[idx] || typeof window === 'undefined') && (
-                        <p className="mt-2 text-amber-900/90 leading-relaxed border-t border-amber-200/60 pt-2 animate-fadeIn print-expand">
-                          {step.whyExplanation}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {step.highlight && (
+                  <span className="text-xs font-semibold text-sky-700 bg-sky-100/70 border border-sky-200 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                    {tSteps.coreBadge}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
-        )}
+
+              <div className="pl-8 sm:pl-8 space-y-2.5">
+                <div className="bg-white border border-slate-200/90 rounded-lg p-3.5 my-2 shadow-2xs">
+                  <MathView math={step.math} block className="text-base sm:text-lg" />
+                </div>
+
+                {step.note && (
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                    {step.note}
+                  </p>
+                )}
+
+                {/* Expandable Pedagogical "WHY" block */}
+                {step.whyExplanation && (
+                  <div className="rounded-lg bg-amber-50/70 border border-amber-200/90 p-3 sm:p-3.5 text-xs sm:text-sm text-amber-950">
+                    <div
+                      onClick={() => toggleWhy(idx)}
+                      className="flex items-center justify-between cursor-pointer font-bold text-amber-900 select-none"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>{lang === 'zh' ? '为什么这样做？（数学原理与考点剖析）' : 'Why do this? (Mathematical Rationale)'}</span>
+                      </div>
+                      <span className="text-xs text-amber-700 font-semibold print-hide">
+                        {expandedWhy[idx] ? (lang === 'zh' ? '收起' : 'Hide') : (lang === 'zh' ? '展开详解' : 'Show')}
+                      </span>
+                    </div>
+
+                    {(expandedWhy[idx] || typeof window === 'undefined') && (
+                      <p className="mt-2 text-amber-900/90 leading-relaxed border-t border-amber-200/60 pt-2 animate-fadeIn print-expand">
+                        {step.whyExplanation}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* MODE 2: STEPPER / GUIDED STEP-BY-STEP VIEW */}
         {viewMode === 'stepper' && (
-          <div className="p-5 sm:p-6 space-y-5">
+          <div className="p-5 sm:p-6 space-y-5 print:hidden">
             {/* Stepper Progress Bar */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
