@@ -13,11 +13,14 @@ import {
   History,
   XCircle,
   ClipboardPaste,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 interface ParabolaInputProps {
   onSolve: (result: ConicAnalysisResult, eqText?: string) => void;
+  onError?: (errorMessage: string, rawInput: string) => void;
   currentResult: ConicAnalysisResult | null;
   lang: Language;
   onOpenHistory: () => void;
@@ -25,6 +28,7 @@ interface ParabolaInputProps {
 
 export const ParabolaInput: React.FC<ParabolaInputProps> = ({
   onSolve,
+  onError,
   lang,
   onOpenHistory
 }) => {
@@ -63,10 +67,11 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       return {
         valid: true,
         latex: parsed.standardLatex,
-        type: parsed.conicType
+        type: parsed.conicType,
+        error: null
       };
-    } catch {
-      return { valid: false, latex: '', type: null };
+    } catch (err: any) {
+      return { valid: false, latex: '', type: null, error: err.message };
     }
   }, [naturalEq, lang]);
 
@@ -92,7 +97,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       const res = parseUniversalConic(naturalEq, lang);
       onSolve(res, naturalEq.trim());
     } catch (err: any) {
-      setInputError(err.message || 'Error parsing equation.');
+      const errMsg = err.message || 'Error parsing equation.';
+      setInputError(errMsg);
+      if (onError) onError(errMsg, naturalEq.trim());
     }
   };
 
@@ -385,6 +392,27 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
                   <span className="font-mono uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold">
                     {livePreview.type}
                   </span>
+                </div>
+              )}
+
+              {/* Real-Time In-flight Syntax Warning */}
+              {livePreview && !livePreview.valid && naturalEq.trim() && !inputError && (
+                <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50/90 border border-amber-200 flex items-start gap-2 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>{livePreview.error}</span>
+                </div>
+              )}
+
+              {/* Submitted Input Error Alert Banner */}
+              {inputError && (
+                <div className="mt-3 p-3.5 bg-rose-50 border border-rose-300 rounded-lg text-xs sm:text-sm text-rose-800 flex items-start gap-2.5 animate-fadeIn">
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-bold block text-rose-900">
+                      {lang === 'zh' ? '输入无法计算（格式或方程类型错误）：' : 'Invalid Conic Equation:'}
+                    </span>
+                    <p className="leading-relaxed font-medium">{inputError}</p>
+                  </div>
                 </div>
               )}
             </div>

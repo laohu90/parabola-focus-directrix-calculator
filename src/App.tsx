@@ -19,7 +19,10 @@ import {
   Sparkles,
   GraduationCap,
   Globe,
-  History
+  History,
+  AlertOctagon,
+  HelpCircle,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function App() {
@@ -59,6 +62,9 @@ export default function App() {
   // View mode tab for Section 2: 'both' (side-by-side), 'graph' (graph visualization first), 'steps' (detailed steps first)
   const [stageTab, setStageTab] = useState<'both' | 'graph' | 'steps'>('both');
 
+  // Explicit calculation error state when user enters non-conic, linear or invalid strings (e.g. 'abc', 'x + y = 1')
+  const [solveError, setSolveError] = useState<{ message: string; rawInput: string } | null>(null);
+
   const t = translations[lang];
 
   // Update document title, html lang, and URL search param on language change
@@ -97,6 +103,7 @@ export default function App() {
   const handleSolve = (result: ConicAnalysisResult, eqText?: string) => {
     const finalResult = { ...result, rawEquation: eqText || result.standardLatex };
     setCurrentResult(finalResult);
+    setSolveError(null); // Clear any previous error
 
     // Save to history
     if (eqText) {
@@ -109,6 +116,19 @@ export default function App() {
       const url = new URL(window.location.href);
       url.searchParams.set('eq', eqText);
       window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  const handleSolveError = (errorMessage: string, rawInput: string) => {
+    setSolveError({ message: errorMessage, rawInput });
+  };
+
+  const handleQuickLoad = (eqStr: string) => {
+    try {
+      const res = parseUniversalConic(eqStr, lang);
+      handleSolve(res, eqStr);
+    } catch {
+      // fallback
     }
   };
 
@@ -250,130 +270,222 @@ export default function App() {
         <section id="solver-section" className="print-hide">
           <ParabolaInput
             onSolve={handleSolve}
+            onError={handleSolveError}
             currentResult={currentResult}
             lang={lang}
             onOpenHistory={() => setHistoryOpen(true)}
           />
         </section>
 
-        {/* Section 2: Two-Zone Interactive Stage */}
+        {/* Section 2: Two-Zone Interactive Stage or Error Screen */}
         <section id="canvas-section" className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 print-hide">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-sky-600" />
-              <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                {lang === 'zh' ? '解析结果与几何坐标图' : t.steps.title}
-              </h2>
-            </div>
-
-            {/* View Mode Switcher: Combined / Graph First / Steps First */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-semibold">
-              <button
-                onClick={() => setStageTab('both')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  stageTab === 'both'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {lang === 'zh' ? '🌓 左右并排' : 'Side-by-Side'}
-              </button>
-              <button
-                onClick={() => setStageTab('graph')}
-                className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1 ${
-                  stageTab === 'graph'
-                    ? 'bg-white text-sky-700 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <span>{lang === 'zh' ? '📈 焦点准线坐标图' : 'Graph Visualization'}</span>
-              </button>
-              <button
-                onClick={() => setStageTab('steps')}
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  stageTab === 'steps'
-                    ? 'bg-white text-indigo-700 shadow-2xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {lang === 'zh' ? '📝 配方解题全过程' : 'Detailed Steps'}
-              </button>
-            </div>
-          </div>
-
-          {/* Conditional Layout based on stageTab */}
-          {stageTab === 'both' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-              {/* Left Zone: Step-by-Step Completing the Square Solution (7 cols) */}
-              <div className="lg:col-span-7 space-y-6">
-                <StepsSolutionView
-                  conic={currentResult}
-                  lang={lang}
-                  onViewGraph={() => setStageTab('graph')}
-                />
+          {solveError ? (
+            <div className="bg-white border-2 border-rose-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertOctagon className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900">
+                    {lang === 'zh' ? '输入无法计算：非有效圆锥曲线方程' : 'Calculation Failed: Invalid Conic Equation'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500">
+                    {lang === 'zh'
+                      ? '本求解器专注于抛物线、椭圆与双曲线的配方法拆解与坐标计算，需输入二次方程。'
+                      : 'This solver specifically analyzes quadratic conic sections (parabolas, ellipses, hyperbolas).'}
+                  </p>
+                </div>
               </div>
 
-              {/* Right Zone: Interactive Geometric Coordinate Canvas (5 cols) */}
-              <div className="lg:col-span-5 space-y-6 sticky top-20 print-hide">
-                <ParabolaCanvas conic={currentResult} lang={lang} />
+              {/* Error Detail Box */}
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs sm:text-sm space-y-2">
+                <div className="flex items-center gap-2 text-rose-900 font-semibold">
+                  <span>{lang === 'zh' ? '您当前输入：' : 'Your Input:'}</span>
+                  <code className="bg-rose-100 px-2 py-0.5 rounded font-mono font-bold text-rose-800">
+                    {solveError.rawInput}
+                  </code>
+                </div>
+                <div className="text-rose-700 font-medium">
+                  <strong>{lang === 'zh' ? '错误原因：' : 'Reason: '}</strong>
+                  {solveError.message}
+                </div>
+              </div>
 
-                {/* Quick Math Knowledge Flashcard */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 text-xs sm:text-sm space-y-2.5">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5 text-sm sm:text-base">
-                    <BookOpen className="w-4 h-4 text-sky-600" />
-                    <span>
-                      {currentResult.conicType === 'parabola' && (lang === 'zh' ? '抛物线第一定义' : 'Parabola Definition')}
-                      {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '椭圆第一定义' : 'Ellipse Definition')}
-                      {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '双曲线第一定义' : 'Hyperbola Definition')}
-                    </span>
-                  </div>
-                  <p className="text-slate-600 leading-relaxed">
-                    {currentResult.conicType === 'parabola' && (lang === 'zh' ? '到定点 F（焦点）与定直线 l（准线）距离相等的轨迹。' : 'Locus of points equidistant from Focus and Directrix.')}
-                    {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之和等于定长 2a（2a > |F₁F₂|）的轨迹。' : 'Locus of points where the sum of distances to two foci is constant 2a.')}
-                    {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之差的绝对值等于定长 2a（2a < |F₁F₂|）的轨迹。' : 'Locus of points where the absolute difference of distances to two foci is constant 2a.')}
-                  </p>
-                  <div className="bg-white p-3 rounded-lg border border-slate-200 text-center font-bold text-base text-slate-800">
-                    {currentResult.conicType === 'parabola' && <MathView math="|PF| = d(P, l)" />}
-                    {currentResult.conicType === 'ellipse' && <MathView math="|PF_1| + |PF_2| = 2a" />}
-                    {currentResult.conicType === 'hyperbola' && <MathView math="||PF_1| - |PF_2|| = 2a" />}
-                  </div>
+              {/* Why this is an error explanation */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 text-xs sm:text-sm space-y-2 text-slate-700">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-sky-600" />
+                  <span>{lang === 'zh' ? '圆锥曲线输入规范与数学原理说明' : 'Conic Section Input Guidelines'}</span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1.5 leading-relaxed text-slate-600">
+                  <li>
+                    {lang === 'zh'
+                      ? '一次方程（如 x + y = 1 或 2x - 3y = 0）在平面解析几何中严格表示直线，缺少二次项，因而没有焦点、准线或配方法拆解。'
+                      : 'Linear equations (e.g. x + y = 1) represent straight lines, with no focus, directrix or completing-the-square.'}
+                  </li>
+                  <li>
+                    {lang === 'zh'
+                      ? '任意圆锥曲线（抛物线、椭圆、双曲线）的最高次数必须为二次，至少包含 x² 或 y²。'
+                      : 'All conic sections must have degree 2 with at least one x² or y² term.'}
+                  </li>
+                  <li>
+                    {lang === 'zh'
+                      ? '请勿输入非数学英文字母（如 abc、foo）或无变量等式。'
+                      : 'Do not enter non-mathematical text or expressions without variables.'}
+                  </li>
+                </ul>
+              </div>
+
+              {/* One-Click Recovery Buttons */}
+              <div className="pt-2">
+                <div className="text-xs font-semibold text-slate-600 mb-2">
+                  {lang === 'zh' ? '立即载入标准真题试算（一键恢复）：' : 'Click to load a valid exam problem:'}
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    onClick={() => handleQuickLoad('y^2 - 4y - 8x + 12 = 0')}
+                    className="px-3.5 py-2 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 font-medium text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
+                    <span>{lang === 'zh' ? '抛物线配方: y² - 4y - 8x + 12 = 0' : 'Parabola: y² - 4y - 8x + 12 = 0'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickLoad('y^2 = 8x')}
+                    className="px-3.5 py-2 rounded-lg bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100 font-medium text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
+                    <span>{lang === 'zh' ? '标准抛物线: y² = 8x' : 'Standard Parabola: y² = 8x'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleQuickLoad('x^2/25 + y^2/16 = 1')}
+                    className="px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 font-medium text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{lang === 'zh' ? '椭圆标准方程: x²/25 + y²/16 = 1' : 'Ellipse: x²/25 + y²/16 = 1'}</span>
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3 print-hide">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-sky-600" />
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                    {lang === 'zh' ? '解析结果与几何坐标图' : t.steps.title}
+                  </h2>
+                </div>
 
-          {stageTab === 'graph' && (
-            <div className="space-y-6">
-              <ParabolaCanvas conic={currentResult} lang={lang} />
-              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <span className="text-sm text-slate-700 font-medium">
-                  {lang === 'zh' ? '已展示焦点坐标、准线方程、通径弦与 p/2 距离标尺' : 'Displaying focus coordinates, directrix line, latus rectum and p/2 distance.'}
-                </span>
-                <button
-                  onClick={() => setStageTab('steps')}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors"
-                >
-                  {lang === 'zh' ? '查看详细配方解题步骤 →' : 'View Step-by-Step Breakdown →'}
-                </button>
+                {/* View Mode Switcher: Combined / Graph First / Steps First */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-semibold">
+                  <button
+                    onClick={() => setStageTab('both')}
+                    className={`px-3 py-1.5 rounded-md transition-all ${
+                      stageTab === 'both'
+                        ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {lang === 'zh' ? '🌓 左右并排' : 'Side-by-Side'}
+                  </button>
+                  <button
+                    onClick={() => setStageTab('graph')}
+                    className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1 ${
+                      stageTab === 'graph'
+                        ? 'bg-white text-sky-700 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>{lang === 'zh' ? '📈 焦点准线坐标图' : 'Graph Visualization'}</span>
+                  </button>
+                  <button
+                    onClick={() => setStageTab('steps')}
+                    className={`px-3 py-1.5 rounded-md transition-all ${
+                      stageTab === 'steps'
+                        ? 'bg-white text-indigo-700 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {lang === 'zh' ? '📝 配方解题全过程' : 'Detailed Steps'}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
 
-          {stageTab === 'steps' && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center bg-sky-50 p-3.5 rounded-xl border border-sky-200 text-xs sm:text-sm text-sky-900">
-                <span className="font-semibold">
-                  {lang === 'zh' ? '💡 想看几何画板？点击即可随时切换到焦点与准线坐标图' : 'Want to view geometric coordinate graph? Click to switch anytime'}
-                </span>
-                <button
-                  onClick={() => setStageTab('graph')}
-                  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg shadow-2xs transition-colors"
-                >
-                  {lang === 'zh' ? '查看坐标图' : 'View Graph'}
-                </button>
-              </div>
-              <StepsSolutionView conic={currentResult} lang={lang} onViewGraph={() => setStageTab('graph')} />
-            </div>
+              {/* Conditional Layout based on stageTab */}
+              {stageTab === 'both' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+                  {/* Left Zone: Step-by-Step Completing the Square Solution (7 cols) */}
+                  <div className="lg:col-span-7 space-y-6">
+                    <StepsSolutionView
+                      conic={currentResult}
+                      lang={lang}
+                      onViewGraph={() => setStageTab('graph')}
+                    />
+                  </div>
+
+                  {/* Right Zone: Interactive Geometric Coordinate Canvas (5 cols) */}
+                  <div className="lg:col-span-5 space-y-6 sticky top-20 print-hide">
+                    <ParabolaCanvas conic={currentResult} lang={lang} />
+
+                    {/* Quick Math Knowledge Flashcard */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 text-xs sm:text-sm space-y-2.5">
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5 text-sm sm:text-base">
+                        <BookOpen className="w-4 h-4 text-sky-600" />
+                        <span>
+                          {currentResult.conicType === 'parabola' && (lang === 'zh' ? '抛物线第一定义' : 'Parabola Definition')}
+                          {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '椭圆第一定义' : 'Ellipse Definition')}
+                          {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '双曲线第一定义' : 'Hyperbola Definition')}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed">
+                        {currentResult.conicType === 'parabola' && (lang === 'zh' ? '到定点 F（焦点）与定直线 l（准线）距离相等的轨迹。' : 'Locus of points equidistant from Focus and Directrix.')}
+                        {currentResult.conicType === 'ellipse' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之和等于定长 2a（2a > |F₁F₂|）的轨迹。' : 'Locus of points where the sum of distances to two foci is constant 2a.')}
+                        {currentResult.conicType === 'hyperbola' && (lang === 'zh' ? '平面内到两定点 F₁, F₂ 的距离之差的绝对值等于定长 2a（2a < |F₁F₂|）的轨迹。' : 'Locus of points where the absolute difference of distances to two foci is constant 2a.')}
+                      </p>
+                      <div className="bg-white p-3 rounded-lg border border-slate-200 text-center font-bold text-base text-slate-800">
+                        {currentResult.conicType === 'parabola' && <MathView math="|PF| = d(P, l)" />}
+                        {currentResult.conicType === 'ellipse' && <MathView math="|PF_1| + |PF_2| = 2a" />}
+                        {currentResult.conicType === 'hyperbola' && <MathView math="||PF_1| - |PF_2|| = 2a" />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {stageTab === 'graph' && (
+                <div className="space-y-6">
+                  <ParabolaCanvas conic={currentResult} lang={lang} />
+                  <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <span className="text-sm text-slate-700 font-medium">
+                      {lang === 'zh' ? '已展示焦点坐标、准线方程、通径弦与 p/2 距离标尺' : 'Displaying focus coordinates, directrix line, latus rectum and p/2 distance.'}
+                    </span>
+                    <button
+                      onClick={() => setStageTab('steps')}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors"
+                    >
+                      {lang === 'zh' ? '查看详细配方解题步骤 →' : 'View Step-by-Step Breakdown →'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {stageTab === 'steps' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center bg-sky-50 p-3.5 rounded-xl border border-sky-200 text-xs sm:text-sm text-sky-900">
+                    <span className="font-semibold">
+                      {lang === 'zh' ? '💡 想看几何画板？点击即可随时切换到焦点与准线坐标图' : 'Want to view geometric coordinate graph? Click to switch anytime'}
+                    </span>
+                    <button
+                      onClick={() => setStageTab('graph')}
+                      className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg shadow-2xs transition-colors"
+                    >
+                      {lang === 'zh' ? '查看坐标图' : 'View Graph'}
+                    </button>
+                  </div>
+                  <StepsSolutionView conic={currentResult} lang={lang} onViewGraph={() => setStageTab('graph')} />
+                </div>
+              )}
+            </>
           )}
         </section>
 
