@@ -1,0 +1,7 @@
+{
+  "name": "抛物线焦点与准线求解器 | 高二解析几何",
+  "description": "高二解析几何抛物线焦点与准线方程在线计算器，提供配方法完整拆解步骤、开口方向速判口诀与交互式几何画板验证。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
