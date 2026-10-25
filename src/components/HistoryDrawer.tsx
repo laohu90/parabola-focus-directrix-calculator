@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { HistoryItem, clearHistory, toggleStarHistoryItem } from '../utils/historyManager.ts';
 import { MathView } from './MathView.tsx';
 import { Language } from '../i18n/translations.ts';
-import { History, Star, Trash2, X, Clock, ArrowRight } from 'lucide-react';
+import { History, Star, Trash2, X, Clock, ArrowRight, Copy, Check } from 'lucide-react';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -78,6 +78,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     hyperbola: 'bg-purple-50 text-purple-700 border-purple-200'
   };
 
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   const handleClear = () => {
     clearHistory();
     onUpdateList([]);
@@ -87,6 +89,36 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     e.stopPropagation();
     const updated = toggleStarHistoryItem(id);
     onUpdateList(updated);
+  };
+
+  const handleCopyItem = async (e: React.MouseEvent, eq: string, id: string) => {
+    e.stopPropagation();
+    let ok = false;
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(eq);
+        ok = true;
+      } catch {
+        // fallback
+      }
+    }
+    if (!ok && typeof document !== 'undefined') {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = eq;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        // ignore
+      }
+    }
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
@@ -131,17 +163,32 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   >
                     {conicBadgeNames[item.conicType] || item.conicType}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400 mr-1">
                       {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <button
+                      onClick={(e) => handleCopyItem(e, item.equation, item.id)}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        copiedId === item.id
+                          ? 'bg-emerald-100 text-emerald-700 font-bold'
+                          : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                      }`}
+                      title={copiedId === item.id ? 'Copied!' : 'Copy equation'}
+                    >
+                      {copiedId === item.id ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-slate-400" />
+                      )}
+                    </button>
+                    <button
                       onClick={(e) => handleToggleStar(e, item.id)}
-                      className="p-1 text-slate-300 hover:text-amber-500 transition-colors"
+                      className="p-1.5 text-slate-300 hover:text-amber-500 hover:bg-slate-100 rounded-md transition-colors"
                       title="Bookmark"
                     >
                       <Star
-                        className={`w-4 h-4 ${
+                        className={`w-3.5 h-3.5 ${
                           item.starred ? 'fill-amber-400 text-amber-500' : 'text-slate-300'
                         }`}
                       />
