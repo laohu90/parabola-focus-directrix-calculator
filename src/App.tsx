@@ -22,7 +22,8 @@ import {
   History,
   AlertOctagon,
   HelpCircle,
-  CheckCircle2
+  CheckCircle2,
+  Star
 } from 'lucide-react';
 
 export default function App() {
@@ -55,8 +56,9 @@ export default function App() {
     return solveParabola('horizontal', 1, -4, -8, 12, 'en');
   });
 
-  // History state
+  // History and Bookmarks state
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyDrawerTab, setHistoryDrawerTab] = useState<'all' | 'bookmarks'>('all');
   const [historyList, setHistoryList] = useState<HistoryItem[]>(() => getHistory());
 
   // View mode tab for Section 2: 'both' (side-by-side), 'graph' (graph visualization first), 'steps' (detailed steps first)
@@ -192,16 +194,37 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Language Selector & History */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: Language Selector, History & Bookmarks */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Bookmarks Toggle Button */}
+            <button
+              onClick={() => {
+                setHistoryDrawerTab('bookmarks');
+                setHistoryOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
+              title={lang === 'zh' ? '我的书签收藏' : 'Bookmarks'}
+            >
+              <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+              <span className="hidden sm:inline">{lang === 'zh' ? '书签' : 'Bookmarks'}</span>
+              {historyList.filter((i) => i.starred).length > 0 && (
+                <span className="bg-amber-500 text-white rounded-full px-1.5 text-[10px] font-bold">
+                  {historyList.filter((i) => i.starred).length}
+                </span>
+              )}
+            </button>
+
             {/* History Toggle Button */}
             <button
-              onClick={() => setHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition-colors border border-slate-200"
-              title="History"
+              onClick={() => {
+                setHistoryDrawerTab('all');
+                setHistoryOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition-colors border border-slate-200"
+              title={lang === 'zh' ? '做题历史' : 'History'}
             >
               <History className="w-4 h-4 text-sky-600" />
-              <span className="hidden sm:inline">{lang === 'zh' ? '历史记录' : 'History'}</span>
+              <span className="hidden sm:inline">{lang === 'zh' ? '历史' : 'History'}</span>
               {historyList.length > 0 && (
                 <span className="bg-sky-600 text-white rounded-full px-1.5 text-[10px] font-bold">
                   {historyList.length}
@@ -420,6 +443,11 @@ export default function App() {
                       conic={currentResult}
                       lang={lang}
                       onViewGraph={() => setStageTab('graph')}
+                      onBookmarkChanged={() => setHistoryList(getHistory())}
+                      onOpenBookmarks={() => {
+                        setHistoryDrawerTab('bookmarks');
+                        setHistoryOpen(true);
+                      }}
                     />
                   </div>
 
@@ -482,7 +510,16 @@ export default function App() {
                       {lang === 'zh' ? '查看坐标图' : 'View Graph'}
                     </button>
                   </div>
-                  <StepsSolutionView conic={currentResult} lang={lang} onViewGraph={() => setStageTab('graph')} />
+                  <StepsSolutionView
+                    conic={currentResult}
+                    lang={lang}
+                    onViewGraph={() => setStageTab('graph')}
+                    onBookmarkChanged={() => setHistoryList(getHistory())}
+                    onOpenBookmarks={() => {
+                      setHistoryDrawerTab('bookmarks');
+                      setHistoryOpen(true);
+                    }}
+                  />
                 </div>
               )}
             </>
@@ -569,7 +606,7 @@ export default function App() {
         </section>
       </main>
 
-      {/* History Drawer Modal */}
+      {/* History & Bookmarks Drawer Modal */}
       <HistoryDrawer
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
@@ -580,6 +617,7 @@ export default function App() {
         }}
         onUpdateList={setHistoryList}
         lang={lang}
+        initialTab={historyDrawerTab}
       />
 
       {/* Footer */}

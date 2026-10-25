@@ -11,6 +11,7 @@ interface HistoryDrawerProps {
   onSelectEquation: (equation: string) => void;
   onUpdateList: (newList: HistoryItem[]) => void;
   lang: Language;
+  initialTab?: 'all' | 'bookmarks';
 }
 
 export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
@@ -19,30 +20,36 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   historyList,
   onSelectEquation,
   onUpdateList,
-  lang
+  lang,
+  initialTab = 'all'
 }) => {
   if (!isOpen) return null;
+
+  const [filterMode, setFilterMode] = useState<'all' | 'bookmarks'>(initialTab);
 
   const t = {
     en: {
       title: 'Problem History & Bookmarks',
       empty: 'No solved problems yet. Solve equations to save them here!',
+      emptyBookmarks: 'No bookmarks yet! Click "Bookmark" on any solution to save challenging problems here.',
       clearAll: 'Clear History',
       loadBtn: 'Load',
-      starred: 'Starred Only',
+      starred: 'Bookmarks',
       all: 'All History'
     },
     zh: {
-      title: '做题历史记录与收藏',
+      title: '做题历史记录与书签收藏',
       empty: '暂无做题记录。求解任意方程后将自动保存在这里！',
+      emptyBookmarks: '暂无书签收藏。在任意解题结果栏点击【★ 收藏本题】，即可保存在这里随时重练！',
       clearAll: '清空历史',
       loadBtn: '载入重解',
-      starred: '仅看收藏',
-      all: '全部记录'
+      starred: '我的书签',
+      all: '全部历史'
     },
     es: {
       title: 'Historial de Ejercicios y Favoritos',
       empty: 'Aún no hay ejercicios guardados. ¡Resuelve ecuaciones para verlas aquí!',
+      emptyBookmarks: '¡Sin favoritos aún! Haz clic en "Favorito" para guardar ejercicios.',
       clearAll: 'Borrar Historial',
       loadBtn: 'Cargar',
       starred: 'Favoritos',
@@ -51,6 +58,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     fr: {
       title: 'Historique des Problèmes & Favoris',
       empty: 'Aucun problème résolu pour le moment.',
+      emptyBookmarks: 'Aucun favori pour le moment.',
       clearAll: 'Effacer l\'Historique',
       loadBtn: 'Charger',
       starred: 'Favoris',
@@ -59,6 +67,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     pt: {
       title: 'Histórico de Exercícios e Favoritos',
       empty: 'Nenhum exercício salvo ainda.',
+      emptyBookmarks: 'Nenhum favorito salvo ainda.',
       clearAll: 'Limpar Histórico',
       loadBtn: 'Carregar',
       starred: 'Favoritos',
@@ -93,6 +102,9 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   const handleCopyItem = async (e: React.MouseEvent, eq: string, id: string) => {
     e.stopPropagation();
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+
     let ok = false;
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       try {
@@ -117,9 +129,11 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         // ignore
       }
     }
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const displayList = filterMode === 'bookmarks'
+    ? historyList.filter((item) => item.starred)
+    : historyList;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs flex justify-end">
@@ -138,15 +152,53 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
           </button>
         </div>
 
+        {/* Tab Switcher: All History vs Bookmarks Only */}
+        <div className="flex border-b border-slate-200 bg-slate-100/70 p-1.5 gap-1.5 text-xs font-semibold">
+          <button
+            onClick={() => setFilterMode('all')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              filterMode === 'all'
+                ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>{t.all}</span>
+            <span className="bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded-full text-[10px]">
+              {historyList.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setFilterMode('bookmarks')}
+            className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              filterMode === 'bookmarks'
+                ? 'bg-white text-amber-900 shadow-2xs font-bold border border-amber-300'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+            <span>{t.starred}</span>
+            <span className="bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full text-[10px] font-bold">
+              {historyList.filter((item) => item.starred).length}
+            </span>
+          </button>
+        </div>
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {historyList.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-sm">
-              <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-              <p>{t.empty}</p>
+          {displayList.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-sm px-6">
+              {filterMode === 'bookmarks' ? (
+                <Star className="w-10 h-10 mx-auto text-amber-300 mb-2 fill-amber-100" />
+              ) : (
+                <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              )}
+              <p className="leading-relaxed">
+                {filterMode === 'bookmarks' ? t.emptyBookmarks : t.empty}
+              </p>
             </div>
           ) : (
-            historyList.map((item) => (
+            displayList.map((item) => (
               <div
                 key={item.id}
                 onClick={() => {

@@ -1,7 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ConicAnalysisResult } from '../utils/conicTypes.ts';
 import { formatFractionLaTeX } from '../utils/fraction.ts';
 import { MathView } from './MathView.tsx';
+import { PrintPdfModal } from './PrintPdfModal.tsx';
+import { isEquationBookmarked, toggleBookmarkEquation } from '../utils/historyManager.ts';
 import { Language, translations } from '../i18n/translations.ts';
 import {
   Check,
@@ -15,6 +17,7 @@ import {
   ArrowRight,
   ListOrdered,
   Crosshair,
+  Star,
   X
 } from 'lucide-react';
 
@@ -22,6 +25,8 @@ interface StepsSolutionViewProps {
   conic: ConicAnalysisResult;
   lang: Language;
   onViewGraph?: () => void;
+  onBookmarkChanged?: () => void;
+  onOpenBookmarks?: () => void;
 }
 
 const copyToastMessages: Record<Language, { title: string; desc: string; buttonCopied: string }> = {
@@ -52,7 +57,13 @@ const copyToastMessages: Record<Language, { title: string; desc: string; buttonC
   }
 };
 
-export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lang, onViewGraph }) => {
+export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
+  conic,
+  lang,
+  onViewGraph,
+  onBookmarkChanged,
+  onOpenBookmarks
+}) => {
   const tSummary = translations[lang].summary;
   const tSteps = translations[lang].steps;
   const toastText = copyToastMessages[lang] || copyToastMessages.en;
@@ -60,7 +71,36 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
   const [copied, setCopied] = useState(false);
   const [copiedLatex, setCopiedLatex] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const toastTimerRef = useRef<number | null>(null);
+
+  // Bookmark state tracking
+  const currentEqKey = conic.rawEquation || conic.standardLatex;
+  const [bookmarked, setBookmarked] = useState<boolean>(() =>
+    isEquationBookmarked(currentEqKey)
+  );
+  const [bookmarkToast, setBookmarkToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBookmarked(isEquationBookmarked(currentEqKey));
+  }, [currentEqKey]);
+
+  const handleToggleBookmark = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const { isBookmarked } = toggleBookmarkEquation(currentEqKey, conic.conicType);
+    setBookmarked(isBookmarked);
+    const msg = isBookmarked
+      ? (lang === 'zh' ? '★ 已将本题加入书签收藏库！可在顶部“书签”随时重练' : '★ Added to Bookmarks! Accessible from top nav')
+      : (lang === 'zh' ? '已从书签收藏库移除' : 'Removed from Bookmarks');
+    setBookmarkToast(msg);
+    setTimeout(() => setBookmarkToast(null), 3000);
+    if (onBookmarkChanged) {
+      onBookmarkChanged();
+    }
+  };
 
   const [viewMode, setViewMode] = useState<'all' | 'stepper'>('all');
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
@@ -105,55 +145,14 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
     return ok;
   };
 
-  const copySummary = async () => {
-    const conicTypeLabels: Record<string, string> = {
-      parabola: lang === 'zh' ? '抛物线' : 'Parabola',
-      ellipse: lang === 'zh' ? '椭圆' : 'Ellipse',
-      hyperbola: lang === 'zh' ? '双曲线' : 'Hyperbola'
-    };
-
-    let text = `========================================\n`;
-    text += `【${lang === 'zh' ? '圆锥曲线解析几何解题与配方报告' : 'Conic Section Analytic Geometry & Solution Report'}】\n`;
-    text += `========================================\n\n`;
-    text += `${lang === 'zh' ? '曲线类型' : 'Conic Type'}: ${conicTypeLabels[conic.conicType] || conic.conicType.toUpperCase()}\n`;
-    text += `${lang === 'zh' ? '标准方程' : 'Standard Equation'}: ${conic.standardLatex}\n`;
-    if (conic.rawEquation) {
-      text += `${lang === 'zh' ? '输入方程' : 'Input Equation'}: ${conic.rawEquation}\n`;
+  // Instant synchronous feedback on copy click - 0ms response time
+  const copySummary = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
-    text += `\n----------------------------------------\n`;
-    text += `${lang === 'zh' ? '【核心几何特征量】' : '【KEY GEOMETRIC PARAMETERS】'}\n`;
-    text += `• ${conic.conicType === 'parabola' ? (lang === 'zh' ? '顶点坐标 V' : 'Vertex V') : (lang === 'zh' ? '中心坐标 O' : 'Center O')}: (${conic.centerOrVertex.x}, ${conic.centerOrVertex.y})\n`;
-    text += `• ${lang === 'zh' ? '焦点坐标 F' : 'Foci F'}: ${conic.foci.map((f) => `${f.label}(${f.x}, ${f.y})`).join(', ')}\n`;
-    text += `• ${tSummary.eccentricity}: ${conic.eccentricity.latex} (${conic.conicType === 'parabola' ? 'e = 1' : conic.conicType === 'ellipse' ? '0 < e < 1' : 'e > 1'})\n`;
-    text += `• ${tSummary.latusRectum}: ${conic.latusRectum.latex} ≈ ${conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}\n`;
-    if (conic.directrices.length > 0) {
-      text += `• ${tSummary.directrix}: ${conic.directrices.map((d) => d.latex).join('; ')}\n`;
-    }
-    if (conic.asymptotes && conic.asymptotes.length > 0) {
-      text += `• ${lang === 'zh' ? '渐近线' : 'Asymptotes'}: ${conic.asymptotes.map((a) => a.latex).join(', ')}\n`;
-    }
-    text += `• ${tSummary.domain}: x in ${conic.domainLatex}\n`;
-    text += `• ${tSummary.range}: y in ${conic.rangeLatex}\n`;
 
-    text += `\n----------------------------------------\n`;
-    text += `${lang === 'zh' ? '【配方法详细推导步骤】' : '【STEP-BY-STEP COMPLETING THE SQUARE DERIVATION】'}\n`;
-    conic.steps.forEach((step, idx) => {
-      text += `\n[${lang === 'zh' ? '第 ' + (idx + 1) + ' 步' : 'Step ' + (idx + 1)}] ${step.title}\n`;
-      text += `   ${lang === 'zh' ? '数学表达式' : 'Formula'}: ${step.math}\n`;
-      if (step.note) {
-        text += `   ${lang === 'zh' ? '说明' : 'Note'}: ${step.note}\n`;
-      }
-      if (step.whyExplanation) {
-        text += `   ${lang === 'zh' ? '为什么这样做' : 'Why'}: ${step.whyExplanation}\n`;
-      }
-    });
-
-    text += `\n========================================\n`;
-    text += `${lang === 'zh' ? '求解器网址' : 'Generated by'}: https://parabola-focus-directrix-calculator.formulacalckit.com\n`;
-
-    await executeClipboardCopy(text);
-
-    // Trigger visual feedback (both inline button, speech popover, and top-center toast)
+    // 1. INSTANT SYNCHRONOUS FEEDBACK
     setCopied(true);
     setShowToast(true);
 
@@ -163,17 +162,87 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
     toastTimerRef.current = window.setTimeout(() => {
       setCopied(false);
       setShowToast(false);
-    }, 3500);
+    }, 4000);
+
+    // 2. Perform copy safely
+    setTimeout(async () => {
+      try {
+        const conicTypeLabels: Record<string, string> = {
+          parabola: lang === 'zh' ? '抛物线' : 'Parabola',
+          ellipse: lang === 'zh' ? '椭圆' : 'Ellipse',
+          hyperbola: lang === 'zh' ? '双曲线' : 'Hyperbola'
+        };
+
+        let text = `========================================\n`;
+        text += `【${lang === 'zh' ? '圆锥曲线解析几何解题与配方报告' : 'Conic Section Analytic Geometry & Solution Report'}】\n`;
+        text += `========================================\n\n`;
+        text += `${lang === 'zh' ? '曲线类型' : 'Conic Type'}: ${conicTypeLabels[conic.conicType] || conic.conicType.toUpperCase()}\n`;
+        text += `${lang === 'zh' ? '标准方程' : 'Standard Equation'}: ${conic.standardLatex}\n`;
+        if (conic.rawEquation) {
+          text += `${lang === 'zh' ? '输入方程' : 'Input Equation'}: ${conic.rawEquation}\n`;
+        }
+        text += `\n----------------------------------------\n`;
+        text += `${lang === 'zh' ? '【核心几何特征量】' : '【KEY GEOMETRIC PARAMETERS】'}\n`;
+        text += `• ${conic.conicType === 'parabola' ? (lang === 'zh' ? '顶点坐标 V' : 'Vertex V') : (lang === 'zh' ? '中心坐标 O' : 'Center O')}: (${conic.centerOrVertex.x}, ${conic.centerOrVertex.y})\n`;
+        text += `• ${lang === 'zh' ? '焦点坐标 F' : 'Foci F'}: ${conic.foci.map((f) => `${f.label}(${f.x}, ${f.y})`).join(', ')}\n`;
+        text += `• ${tSummary.eccentricity}: ${conic.eccentricity.latex} (${conic.conicType === 'parabola' ? 'e = 1' : conic.conicType === 'ellipse' ? '0 < e < 1' : 'e > 1'})\n`;
+        text += `• ${tSummary.latusRectum}: ${conic.latusRectum.latex} ≈ ${conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}\n`;
+        if (conic.directrices.length > 0) {
+          text += `• ${tSummary.directrix}: ${conic.directrices.map((d) => d.latex).join('; ')}\n`;
+        }
+        if (conic.asymptotes && conic.asymptotes.length > 0) {
+          text += `• ${lang === 'zh' ? '渐近线' : 'Asymptotes'}: ${conic.asymptotes.map((a) => a.latex).join(', ')}\n`;
+        }
+        text += `• ${tSummary.domain}: x in ${conic.domainLatex}\n`;
+        text += `• ${tSummary.range}: y in ${conic.rangeLatex}\n`;
+
+        text += `\n----------------------------------------\n`;
+        text += `${lang === 'zh' ? '【配方法详细推导步骤】' : '【STEP-BY-STEP COMPLETING THE SQUARE DERIVATION】'}\n`;
+        conic.steps.forEach((step, idx) => {
+          text += `\n[${lang === 'zh' ? '第 ' + (idx + 1) + ' 步' : 'Step ' + (idx + 1)}] ${step.title}\n`;
+          text += `   ${lang === 'zh' ? '数学表达式' : 'Formula'}: ${step.math}\n`;
+          if (step.note) {
+            text += `   ${lang === 'zh' ? '说明' : 'Note'}: ${step.note}\n`;
+          }
+          if (step.whyExplanation) {
+            text += `   ${lang === 'zh' ? '为什么这样做' : 'Why'}: ${step.whyExplanation}\n`;
+          }
+        });
+
+        text += `\n========================================\n`;
+        text += `${lang === 'zh' ? '求解器网址' : 'Generated by'}: https://parabola-focus-directrix-calculator.formulacalckit.com\n`;
+
+        await executeClipboardCopy(text);
+      } catch (err) {
+        console.warn('Background copy error:', err);
+      }
+    }, 0);
   };
 
-  const copySingleLatex = async (latexStr: string) => {
-    await executeClipboardCopy(latexStr);
+  const copySingleLatex = (latexStr: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setCopiedLatex(true);
-    setTimeout(() => setCopiedLatex(false), 2000);
+    setTimeout(() => setCopiedLatex(false), 2500);
+    setTimeout(() => {
+      executeClipboardCopy(latexStr);
+    }, 0);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      window.print();
+    } catch (err) {
+      console.warn('Native window.print failed in current context:', err);
+    }
+    // Open dedicated Print & PDF Export modal so users in iframes / test environments can export & print seamlessly!
+    setShowPrintModal(true);
   };
 
   const scrollToStep = (idx: number) => {
@@ -238,6 +307,18 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
         </div>
       )}
 
+      {/* Bookmark Toast Notification */}
+      {bookmarkToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2.5 bg-amber-950/95 backdrop-blur-md text-amber-100 px-5 py-3 rounded-xl shadow-2xl border border-amber-400 animate-fadeIn print:hidden"
+        >
+          <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
+          <span className="text-xs sm:text-sm font-bold">{bookmarkToast}</span>
+        </div>
+      )}
+
       {/* Printable Document Header (Only shown during printing / PDF export) */}
       <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6">
         <div className="flex items-start justify-between">
@@ -298,12 +379,30 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
           </div>
 
           <div className="flex items-center gap-2 print-hide relative">
-            {/* Popover Tooltip Badge directly over the button */}
+            {/* 1. Bookmark Button */}
+            <button
+              onClick={handleToggleBookmark}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 shadow-2xs ${
+                bookmarked
+                  ? 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 ring-2 ring-amber-300/80 shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+              }`}
+              title={bookmarked ? (lang === 'zh' ? '已收藏（点击取消）' : 'Bookmarked') : (lang === 'zh' ? '收藏本题到书签' : 'Bookmark this problem')}
+            >
+              <Star
+                className={`w-4 h-4 ${
+                  bookmarked ? 'fill-amber-500 text-amber-500' : 'text-slate-500'
+                }`}
+              />
+              <span>{bookmarked ? (lang === 'zh' ? '已收藏' : 'Bookmarked') : (lang === 'zh' ? '收藏本题' : 'Bookmark')}</span>
+            </button>
+
+            {/* 2. Popover Tooltip Badge directly over the copy button */}
             {copied && (
-              <div className="absolute -top-11 right-0 sm:left-1/2 sm:-translate-x-1/2 bg-slate-900 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-xl flex items-center gap-1.5 z-40 whitespace-nowrap animate-fadeIn border border-emerald-400">
+              <div className="absolute -top-11 right-12 sm:right-28 bg-slate-900 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-xl flex items-center gap-1.5 z-40 whitespace-nowrap animate-fadeIn border border-emerald-400">
                 <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
                 <span>{lang === 'zh' ? '已复制！' : 'Copied!'}</span>
-                <div className="absolute -bottom-1.5 right-6 sm:left-1/2 sm:-translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-b border-r border-emerald-400" />
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45 border-b border-r border-emerald-400" />
               </div>
             )}
             <button
@@ -327,10 +426,12 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
                 </>
               )}
             </button>
+
+            {/* 3. Print / PDF Export Button */}
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-2xs"
-              title={lang === 'zh' ? '打印或另存为 PDF' : 'Print or Save as PDF'}
+              title={lang === 'zh' ? '打印或导出 PDF 导学案' : 'Print or Export PDF Study Sheet'}
             >
               <Printer className="w-4 h-4" />
               <span>{tSummary.printBtn}</span>
@@ -732,6 +833,15 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({ conic, lan
           </div>
         )}
       </div>
+
+      {/* Dedicated Print & PDF Export Modal */}
+      <PrintPdfModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        conic={conic}
+        lang={lang}
+      />
     </div>
   );
 };
+
