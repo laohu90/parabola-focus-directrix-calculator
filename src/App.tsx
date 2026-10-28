@@ -23,7 +23,9 @@ import {
   AlertOctagon,
   HelpCircle,
   CheckCircle2,
-  Star
+  Star,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -75,6 +77,9 @@ export default function App() {
 
   // Explicit calculation error state when user enters non-conic, linear or invalid strings (e.g. 'abc', 'x + y = 1')
   const [solveError, setSolveError] = useState<{ message: string; rawInput: string } | null>(null);
+
+  // Responsive mobile/laptop header navigation collapse
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const t = translations[lang];
 
@@ -161,21 +166,21 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans">
-      {/* 3-Zone Top Navigation Bar adhering to Frontend Design Constitution */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 print-hide">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-6 sm:gap-8">
+      {/* 3-Zone Top Navigation Bar with Responsive Collapsible Menu */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 print-hide w-full max-w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2.5 flex flex-wrap items-center justify-between gap-y-2 gap-x-3 sm:gap-x-4 min-w-0">
           {/* Zone 1: Wordmark */}
-          <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white font-bold text-sm shadow-2xs">
+          <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center text-white font-bold text-sm shadow-2xs shrink-0">
               <Compass className="w-5 h-5" />
             </div>
-            <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+            <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate max-w-[200px] sm:max-w-xs md:max-w-sm lg:max-w-none">
               {lang === 'zh' ? '圆锥曲线与抛物线焦点求解器' : 'Conic Sections & Parabola Solver'}
             </span>
           </div>
 
-          {/* Zone 2: Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-7 text-sm font-semibold text-slate-600">
+          {/* Zone 2: Navigation Links (Desktop 1280px+) */}
+          <nav className="hidden xl:flex items-center gap-4 2xl:gap-6 text-xs 2xl:text-sm font-semibold text-slate-600 min-w-0">
             <button
               onClick={() => scrollToSection('solver-section')}
               className="hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 text-left"
@@ -208,19 +213,19 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Language Selector, History & Bookmarks */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Zone 3: Language Selector, History, Bookmarks & Mobile Toggle */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Bookmarks Toggle Button */}
             <button
               onClick={() => {
                 setHistoryDrawerTab('bookmarks');
                 setHistoryOpen(true);
               }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-amber-900 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200"
               title={lang === 'zh' ? '我的书签收藏' : 'Bookmarks'}
             >
-              <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
-              <span className="hidden sm:inline">{lang === 'zh' ? '书签' : 'Bookmarks'}</span>
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+              <span className="hidden md:inline">{lang === 'zh' ? '书签' : 'Bookmarks'}</span>
               {historyList.filter((i) => i.starred).length > 0 && (
                 <span className="bg-amber-500 text-white rounded-full px-1.5 text-[10px] font-bold">
                   {historyList.filter((i) => i.starred).length}
@@ -234,11 +239,11 @@ export default function App() {
                 setHistoryDrawerTab('all');
                 setHistoryOpen(true);
               }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition-colors border border-slate-200"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-lg transition-colors border border-slate-200"
               title={lang === 'zh' ? '做题历史' : 'History'}
             >
-              <History className="w-4 h-4 text-sky-600" />
-              <span className="hidden sm:inline">{lang === 'zh' ? '历史' : 'History'}</span>
+              <History className="w-3.5 h-3.5 text-sky-600" />
+              <span className="hidden md:inline">{lang === 'zh' ? '历史' : 'History'}</span>
               {historyList.length > 0 && (
                 <span className="bg-sky-600 text-white rounded-full px-1.5 text-[10px] font-bold">
                   {historyList.length}
@@ -247,12 +252,12 @@ export default function App() {
             </button>
 
             {/* Language Selector */}
-            <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
-              <Globe className="w-3.5 h-3.5 text-slate-500 ml-1.5 mr-1 shrink-0" />
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 sm:p-1 border border-slate-200">
+              <Globe className="w-3.5 h-3.5 text-slate-500 ml-1 mr-0.5 shrink-0" />
               <select
                 value={lang}
                 onChange={(e) => handleLanguageChange(e.target.value as Language)}
-                className="bg-transparent text-xs sm:text-sm font-semibold text-slate-800 focus:outline-hidden cursor-pointer pr-1"
+                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-hidden cursor-pointer pr-1"
                 aria-label="Select Language"
               >
                 <option value="en">English</option>
@@ -265,13 +270,73 @@ export default function App() {
 
             <button
               onClick={() => scrollToSection('solver-section')}
-              className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-xs"
+              className="hidden 2xl:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-xs"
             >
               <GraduationCap className="w-4 h-4" />
               <span>{t.nav.startBtn}</span>
             </button>
+
+            {/* Mobile / Laptop Hamburger Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="xl:hidden p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+
+        {/* Responsive Collapsible Navigation Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="xl:hidden border-t border-slate-200/80 bg-white/98 px-4 py-3 shadow-md animate-fadeIn flex flex-col gap-1 text-sm font-semibold text-slate-700">
+            <button
+              onClick={() => {
+                scrollToSection('solver-section');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {t.nav.steps}
+            </button>
+            <button
+              onClick={() => {
+                scrollToSection('canvas-section');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {t.nav.canvas}
+            </button>
+            <button
+              onClick={() => {
+                scrollToSection('guide-section');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {t.nav.rules}
+            </button>
+            <button
+              onClick={() => {
+                scrollToSection('quiz-section');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {t.nav.quiz}
+            </button>
+            <button
+              onClick={() => {
+                scrollToSection('faq-section');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {t.nav.faq}
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main Content Area */}
@@ -585,7 +650,7 @@ export default function App() {
                 {lang === 'zh' ? '过焦点垂直于对称轴的弦长：' : 'Length of focal chord perpendicular to major/transverse axis:'}
               </div>
               <div className="bg-white p-2.5 rounded border border-slate-200 text-center font-bold text-base">
-                <MathView math="2p \quad \text{或} \quad \frac{2b^2}{a}" />
+                <MathView math={`2p \\quad \\text{${lang === 'zh' ? '或' : lang === 'fr' ? 'ou' : lang === 'es' || lang === 'pt' ? 'o' : 'or'}} \\quad \\frac{2b^2}{a}`} />
               </div>
               <p className="text-slate-500 text-xs">
                 {lang === 'zh' ? '作图与求弦长最小值大题的第一核心量。' : 'Key parameter for sketching curve curvature.'}

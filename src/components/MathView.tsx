@@ -37,3 +37,48 @@ export const MathView: React.FC<MathViewProps> = ({ math, block = false, classNa
     />
   );
 };
+
+interface MathTextProps {
+  text: string;
+  className?: string;
+}
+
+/**
+ * Renders text containing inline LaTeX math expressions delimited by $ ... $.
+ * Formats inline math with KaTeX, eliminating raw LaTeX tokens and line overlap/ghosting.
+ */
+export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
+  const segments = useMemo(() => {
+    if (!text) return [];
+    // Split by $...$
+    return text.split(/(\$[^$]+\$)/g);
+  }, [text]);
+
+  return (
+    <span className={`inline leading-relaxed ${className}`}>
+      {segments.map((seg, idx) => {
+        if (seg.startsWith('$') && seg.endsWith('$') && seg.length > 2) {
+          const rawMath = seg.slice(1, -1);
+          let html = '';
+          try {
+            html = katex.renderToString(rawMath, {
+              displayMode: false,
+              throwOnError: false,
+              strict: false
+            });
+          } catch {
+            html = `<span>${rawMath}</span>`;
+          }
+          return (
+            <span
+              key={idx}
+              className="inline-block px-1 align-baseline font-normal text-slate-900"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
+        }
+        return <span key={idx}>{seg}</span>;
+      })}
+    </span>
+  );
+};

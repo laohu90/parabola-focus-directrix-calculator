@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ConicAnalysisResult } from '../utils/conicTypes.ts';
 import { formatFractionLaTeX } from '../utils/fraction.ts';
-import { MathView } from './MathView.tsx';
+import { MathView, MathText } from './MathView.tsx';
 import { PrintPdfModal } from './PrintPdfModal.tsx';
 import { isEquationBookmarked, toggleBookmarkEquation } from '../utils/historyManager.ts';
 import { Language, translations } from '../i18n/translations.ts';
@@ -708,9 +708,9 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                 </div>
 
                 {step.note && (
-                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
-                    {step.note}
-                  </p>
+                  <div className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                    <MathText text={step.note} />
+                  </div>
                 )}
 
                 {/* Expandable Pedagogical "WHY" block */}
@@ -730,9 +730,9 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                     </div>
 
                     {(expandedWhy[idx] || typeof window === 'undefined') && (
-                      <p className="mt-2 text-amber-900/90 leading-relaxed border-t border-amber-200/60 pt-2 animate-fadeIn print-expand">
-                        {step.whyExplanation}
-                      </p>
+                      <div className="mt-2 text-amber-950 leading-loose border-t border-amber-200/60 pt-2 animate-fadeIn print-expand overflow-x-auto">
+                        <MathText text={step.whyExplanation} className="text-amber-950 leading-loose" />
+                      </div>
                     )}
                   </div>
                 )}
@@ -786,9 +786,9 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                 </div>
 
                 {conic.steps[currentStepIdx].note && (
-                  <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                    {conic.steps[currentStepIdx].note}
-                  </p>
+                  <div className="text-sm text-slate-700 leading-relaxed font-medium">
+                    <MathText text={conic.steps[currentStepIdx].note} />
+                  </div>
                 )}
 
                 {/* Educational Why Box */}
@@ -798,9 +798,9 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                       <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
                       <span>{lang === 'zh' ? '为什么这样做？（数学原理与考点剖析）' : 'Why do this? (Mathematical Rationale)'}</span>
                     </div>
-                    <p className="text-amber-900/90 leading-relaxed border-t border-amber-200/60 pt-2">
-                      {conic.steps[currentStepIdx].whyExplanation}
-                    </p>
+                    <div className="text-amber-950 leading-loose border-t border-amber-200/60 pt-2 overflow-x-auto">
+                      <MathText text={conic.steps[currentStepIdx].whyExplanation} className="text-amber-950 leading-loose" />
+                    </div>
                   </div>
                 )}
               </div>

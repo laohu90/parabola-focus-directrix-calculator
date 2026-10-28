@@ -109,28 +109,86 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
   const cx = width / 2;
   const cy = height / 2;
 
-  // Determine scale based on conic bounding box
-  const maxExtent = useMemo(() => {
-    const coords = [
-      Math.abs(conic.centerOrVertex.x),
-      Math.abs(conic.centerOrVertex.y),
-      ...conic.foci.map((f) => Math.max(Math.abs(f.x), Math.abs(f.y))),
-      ...conic.vertices.map((v) => Math.max(Math.abs(v.x), Math.abs(v.y))),
-      ...conic.directrices.map((d) => Math.abs(d.val))
-    ];
-    if (conic.parameters.a) coords.push(conic.parameters.a * 1.5);
-    if (conic.parameters.b) coords.push(conic.parameters.b * 1.5);
-    if (conic.parameters.p) coords.push(conic.parameters.p * 2);
+  // Determine scale and bounding box dynamically based on conic's actual geometry
+  const { boxCenter, baseScale, maxExtent } = useMemo(() => {
+    const xs: number[] = [conic.centerOrVertex.x];
+    const ys: number[] = [conic.centerOrVertex.y];
 
-    const maxVal = Math.max(...coords, 5);
-    return Math.min(Math.max(maxVal * 1.5, 6), 35);
-  }, [conic]);
+    conic.foci.forEach((f) => {
+      xs.push(f.x);
+      ys.push(f.y);
+    });
 
-  const baseScale = (Math.min(width, height) / (2 * maxExtent)) * zoom;
-  const scale = Math.max(8, Math.min(baseScale, 160));
+    conic.vertices.forEach((v) => {
+      xs.push(v.x);
+      ys.push(v.y);
+    });
 
-  const centerOffsetX = -conic.centerOrVertex.x * scale * 0.4 + pan.x;
-  const centerOffsetY = conic.centerOrVertex.y * scale * 0.4 + pan.y;
+    conic.directrices.forEach((d) => {
+      if (d.type === 'x') xs.push(d.val);
+      if (d.type === 'y') ys.push(d.val);
+    });
+
+    if (conic.conicType === 'ellipse') {
+      const a = conic.parameters.a || 3;
+      const b = conic.parameters.b || 2;
+      const isHoriz = conic.parameters.orientation === 'horizontal';
+      const rx = isHoriz ? a : b;
+      const ry = isHoriz ? b : a;
+      xs.push(conic.centerOrVertex.x - rx, conic.centerOrVertex.x + rx);
+      ys.push(conic.centerOrVertex.y - ry, conic.centerOrVertex.y + ry);
+    } else if (conic.conicType === 'parabola') {
+      const p = conic.parameters.p || 2;
+      const orientation = conic.parameters.orientation || 'horizontal';
+      const direction = conic.parameters.direction || 'right';
+      if (orientation === 'horizontal') {
+        const sign = direction === 'right' ? 1 : -1;
+        xs.push(conic.centerOrVertex.x + sign * p * 1.2);
+        ys.push(conic.centerOrVertex.y - p * 1.2, conic.centerOrVertex.y + p * 1.2);
+      } else {
+        const sign = direction === 'up' ? 1 : -1;
+        ys.push(conic.centerOrVertex.y + sign * p * 1.2);
+        xs.push(conic.centerOrVertex.x - p * 1.2, conic.centerOrVertex.x + p * 1.2);
+      }
+    } else if (conic.conicType === 'hyperbola') {
+      const a = conic.parameters.a || 3;
+      const b = conic.parameters.b || 2;
+      xs.push(conic.centerOrVertex.x - a * 1.5, conic.centerOrVertex.x + a * 1.5);
+      ys.push(conic.centerOrVertex.y - b * 1.5, conic.centerOrVertex.y + b * 1.5);
+    }
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const spanX = Math.max(maxX - minX, 2);
+    const spanY = Math.max(maxY - minY, 2);
+    const boxCenterX = (minX + maxX) / 2;
+    const boxCenterY = (minY + maxY) / 2;
+
+    // Leave generous margins (~35%) so labels, axes, and directrices are clearly visible
+    const padX = spanX * 1.45 + 1;
+    const padY = spanY * 1.45 + 1;
+
+    const scaleX = width / padX;
+    const scaleY = height / padY;
+    const calculatedBaseScale = Math.min(scaleX, scaleY);
+    const clampedBaseScale = Math.max(8, Math.min(calculatedBaseScale, 120));
+
+    const extent = Math.max(spanX, spanY) / 2;
+
+    return {
+      boxCenter: { x: boxCenterX, y: boxCenterY },
+      baseScale: clampedBaseScale,
+      maxExtent: Math.max(extent * 2.5, 8)
+    };
+  }, [conic, width, height]);
+
+  const scale = Math.max(6, Math.min(baseScale * zoom, 240));
+
+  const centerOffsetX = -boxCenter.x * scale + pan.x;
+  const centerOffsetY = boxCenter.y * scale + pan.y;
 
   const toScreenX = useCallback((x: number) => cx + centerOffsetX + x * scale, [cx, centerOffsetX, scale]);
   const toScreenY = useCallback((y: number) => cy + centerOffsetY - y * scale, [cy, centerOffsetY, scale]);
@@ -288,8 +346,17 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
       const distD = Math.abs(directrix.type === 'x' ? px - directrix.val : py - directrix.val);
       const footX = directrix.type === 'x' ? directrix.val : px;
       const footY = directrix.type === 'y' ? directrix.val : py;
-
-      return { px, py, footX, footY, dist1: distF, dist2: distD, label: '|PF| = d(P, 准线)' };
+      const directrixWord =
+        lang === 'zh'
+          ? '准线'
+          : lang === 'fr'
+            ? 'directrice'
+            : lang === 'es'
+              ? 'directriz'
+              : lang === 'pt'
+                ? 'diretriz'
+                : 'directrix';
+      return { px, py, footX, footY, dist1: distF, dist2: distD, label: `|PF| = d(P, ${directrixWord})` };
     }
 
     if (conicType === 'ellipse') {
@@ -325,7 +392,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
     }
 
     return null;
-  }, [conic, curveParam]);
+  }, [conic, curveParam, lang]);
 
   // Coordinate grid ticks
   const gridTicks = useMemo(() => {
@@ -408,34 +475,71 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
       allScreenPts.push(pointPPt);
     }
 
-    // Calculate smart styles
-    const centerStyle = calculateSmartLabel(
-      centerPt,
-      allScreenPts.filter((p) => p !== centerPt),
-      -12,
-      18,
-      'end'
-    );
+    // Calculate smart anti-collision label styles
+    const isVertMajor = conic.conicType === 'ellipse' && conic.parameters.orientation === 'vertical';
+    const isHorizMajor = conic.conicType === 'ellipse' && conic.parameters.orientation === 'horizontal';
 
-    const vertexStyles = vertexPts.map((pt) =>
-      calculateSmartLabel(
+    const centerStyle = isVertMajor
+      ? { x: centerPt.x - 14, y: centerPt.y + 4, textAnchor: 'end' as const }
+      : isHorizMajor
+        ? { x: centerPt.x, y: centerPt.y - 12, textAnchor: 'middle' as const }
+        : calculateSmartLabel(
+            centerPt,
+            allScreenPts.filter((p) => p !== centerPt),
+            -12,
+            18,
+            'end'
+          );
+
+    const vertexStyles = vertexPts.map((pt) => {
+      if (isVertMajor) {
+        const isTop = pt.y < centerPt.y;
+        return {
+          x: pt.x,
+          y: isTop ? pt.y - 10 : pt.y + 16,
+          textAnchor: 'middle' as const
+        };
+      }
+      if (isHorizMajor) {
+        const isLeft = pt.x < centerPt.x;
+        return {
+          x: isLeft ? pt.x - 12 : pt.x + 12,
+          y: pt.y + 4,
+          textAnchor: isLeft ? ('end' as const) : ('start' as const)
+        };
+      }
+      return calculateSmartLabel(
         pt,
         allScreenPts.filter((p) => p !== pt),
         pt.x < centerPt.x ? -10 : 10,
         -8,
         pt.x < centerPt.x ? 'end' : 'start'
-      )
-    );
+      );
+    });
 
-    const fociStyles = fociPts.map((pt) =>
-      calculateSmartLabel(
+    const fociStyles = fociPts.map((pt) => {
+      if (isVertMajor) {
+        return {
+          x: pt.x + 12,
+          y: pt.y + 4,
+          textAnchor: 'start' as const
+        };
+      }
+      if (isHorizMajor) {
+        return {
+          x: pt.x,
+          y: pt.y + 16,
+          textAnchor: 'middle' as const
+        };
+      }
+      return calculateSmartLabel(
         pt,
         allScreenPts.filter((p) => p !== pt),
         pt.x < centerPt.x ? -10 : 10,
         -8,
         pt.x < centerPt.x ? 'end' : 'start'
-      )
-    );
+      );
+    });
 
     const l1Style = l1Pt
       ? calculateSmartLabel(
@@ -984,6 +1088,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 fontSize="12"
                 fontWeight="bold"
                 fill="#0F172A"
+                style={{ paintOrder: 'stroke fill', stroke: '#ffffff', strokeWidth: '3.5px', strokeLinejoin: 'round' }}
               >
                 {conic.centerOrVertex.label}({conic.centerOrVertex.x.toFixed(1).replace(/\.0$/, '')}, {conic.centerOrVertex.y.toFixed(1).replace(/\.0$/, '')})
               </text>
@@ -1005,6 +1110,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     fontSize="11"
                     fontWeight="bold"
                     fill="#1D4ED8"
+                    style={{ paintOrder: 'stroke fill', stroke: '#ffffff', strokeWidth: '3.5px', strokeLinejoin: 'round' }}
                   >
                     {v.label}({v.x.toFixed(1).replace(/\.0$/, '')}, {v.y.toFixed(1).replace(/\.0$/, '')})
                   </text>
@@ -1046,6 +1152,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     fontSize="12"
                     fontWeight="bold"
                     fill="#6D28D9"
+                    style={{ paintOrder: 'stroke fill', stroke: '#ffffff', strokeWidth: '3.5px', strokeLinejoin: 'round' }}
                   >
                     {f.label}({f.x.toFixed(1).replace(/\.0$/, '')}, {f.y.toFixed(1).replace(/\.0$/, '')})
                   </text>

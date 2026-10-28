@@ -189,7 +189,22 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
   // Presets cleanly replace the input through a single unified formula pipeline
   const presets = [
     {
-      badge: lang === 'zh' ? '抛物线配方' : 'Parabola Square',
+      badge: lang === 'zh' ? '椭圆顶点式 (必测用例)' : 'Ellipse Vertex Form',
+      rawEq: '(x-1)^2/4 + (y+2)^2/9 = 1',
+      latex: '\\frac{(x-1)^2}{4} + \\frac{(y+2)^2}{9} = 1'
+    },
+    {
+      badge: lang === 'zh' ? '抛物线顶点式 (y-k)²' : 'Parabola (y-2)²=8(x-1)',
+      rawEq: '(y-2)^2 = 8(x-1)',
+      latex: '(y-2)^2 = 8(x-1)'
+    },
+    {
+      badge: lang === 'zh' ? '抛物线函数式 y=(x-h)²' : 'Parabola y=(x-1)²',
+      rawEq: 'y = (x-1)^2',
+      latex: 'y = (x-1)^2'
+    },
+    {
+      badge: lang === 'zh' ? '抛物线配方一般式' : 'Parabola Square',
       rawEq: 'y^2 - 4y - 8x + 12 = 0',
       latex: 'y^2 - 4y - 8x + 12 = 0'
     },
@@ -199,17 +214,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '4x^2 + 9y^2 - 8x - 36y + 4 = 0'
     },
     {
-      badge: lang === 'zh' ? '椭圆标准式' : 'Ellipse Frac',
-      rawEq: 'x^2/25 + y^2/16 = 1',
-      latex: '\\frac{x^2}{25} + \\frac{y^2}{16} = 1'
-    },
-    {
-      badge: lang === 'zh' ? '椭圆一般式配方' : 'Ellipse General',
-      rawEq: '4x^2 + 9y^2 - 16x + 18y - 11 = 0',
-      latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0'
-    },
-    {
-      badge: lang === 'zh' ? '椭圆(竖直长轴 B>A)' : 'Ellipse (Vertical Major)',
+      badge: lang === 'zh' ? '椭圆(竖直长轴 B>A)' : 'Ellipse (x²/4 + y²/9 = 1)',
       rawEq: 'x^2/4 + y^2/9 = 1',
       latex: '\\frac{x^2}{4} + \\frac{y^2}{9} = 1'
     },
@@ -222,11 +227,6 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       badge: lang === 'zh' ? '双曲线标准式' : 'Hyperbola Frac',
       rawEq: 'x^2/16 - y^2/9 = 1',
       latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1'
-    },
-    {
-      badge: lang === 'zh' ? '双曲线一般式' : 'Hyperbola Eq',
-      rawEq: '4x^2 - 9y^2 = 36',
-      latex: '4x^2 - 9y^2 = 36'
     }
   ];
 

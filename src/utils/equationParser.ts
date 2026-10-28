@@ -24,8 +24,10 @@ export function normalizeMathString(raw: string): string {
     // LaTeX wrappers & spacing
     .replace(/\\left\(/g, '(')
     .replace(/\\right\)/g, ')')
-    .replace(/\\left\[/g, '[')
-    .replace(/\\right\]/g, ']')
+    .replace(/\\left\[/g, '(')
+    .replace(/\\right\]/g, ')')
+    .replace(/\[/g, '(')
+    .replace(/\]/g, ')')
     // LaTeX fractions \frac{a}{b} -> (a)/(b)
     .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
     // Remove extra whitespace
@@ -33,8 +35,9 @@ export function normalizeMathString(raw: string): string {
 }
 
 /**
- * Expands binomial squares (x - h)^2 or (x - h)*(x - h) -> x^2 - 2hx + h^2
- * and expands distribution over linear factors like 8(y + 1) -> 8y + 8.
+ * Expands binomial squares (x - h)^2 or (x - h)*(x - h) -> (x^2 - 2hx + h^2)
+ * and expands distribution over linear factors like 8(y + 1) -> (8y + 8).
+ * Ensures NO spurious interior spaces that could break floating point parsing.
  */
 export function expandAlgebraicParentheses(input: string): string {
   let s = input;
@@ -42,8 +45,8 @@ export function expandAlgebraicParentheses(input: string): string {
   // 1. Replace (x-h)*(x-h) or (x-h)(x-h) with (x-h)^2
   s = s.replace(/\(([^)]+)\)\s*\*?\s*\(\1\)/g, '($1)^2');
 
-  // 2. Expand (a*x + b)^2 or (a*y + b)^2
-  const squarePattern = /\(([-+]?[\d./]*)\s*([xyXY])\s*([+-]\s*[\d./]+)\)\^2/gi;
+  // 2. Expand (a*x + b)^2 or (a*y + b)^2 into (c2*var^2 + c1*var + c0)
+  const squarePattern = /\(([-+]?[\d./]*)\s*([xyXY])\s*([+-]\s*[\d./]+)?\)\^2/gi;
   s = s.replace(squarePattern, (_, aStr, variable, bStr) => {
     let a = 1;
     const aTrim = (aStr || '').replace(/\s+/g, '');
@@ -57,12 +60,14 @@ export function expandAlgebraicParentheses(input: string): string {
     }
 
     let b = 0;
-    const bTrim = (bStr || '').replace(/\s+/g, '');
-    if (bTrim.includes('/')) {
-      const [n, d] = bTrim.split('/');
-      b = parseFloat(n) / parseFloat(d);
-    } else {
-      b = parseFloat(bTrim);
+    if (bStr) {
+      const bTrim = bStr.replace(/\s+/g, '');
+      if (bTrim.includes('/')) {
+        const [n, d] = bTrim.split('/');
+        b = parseFloat(n) / parseFloat(d);
+      } else {
+        b = parseFloat(bTrim);
+      }
     }
 
     if (isNaN(a)) a = 1;
@@ -77,23 +82,239 @@ export function expandAlgebraicParentheses(input: string): string {
     const sign2 = constTerm >= 0 ? '+' : '-';
     const absConst = Math.abs(constTerm);
 
-    return `(${coeff2}${variable}^2 ${sign1} ${absCoeff1}${variable} ${sign2} ${absConst})`;
+    return `(${coeff2}${variable}^2${sign1}${absCoeff1}${variable}${sign2}${absConst})`;
   });
 
-  // 3. Expand outer distribution: e.g. 8(y + 1) -> (8y + 8) or -4(x - 2) -> (-4x + 8)
-  const distPattern = /([+-]?\s*[\d.]+)\s*\*?\s*\(\s*([xyXY])\s*([+-]\s*[\d.]+)\s*\)/gi;
+  // 3. Expand outer distribution: e.g. 8(y + 1) -> (8y+8) or -4(x - 2) -> (-4x+8)
+  const distPattern = /([+-]?\s*[\d.]+)\s*\*?\s*\(\s*([xyXY])\s*([+-]\s*[\d.]+)?\s*\)/gi;
   s = s.replace(distPattern, (_, multStr, variable, bStr) => {
     const mult = parseFloat(multStr.replace(/\s+/g, ''));
-    const b = parseFloat(bStr.replace(/\s+/g, ''));
+    let b = 0;
+    if (bStr) {
+      b = parseFloat(bStr.replace(/\s+/g, ''));
+    }
     if (isNaN(mult) || isNaN(b)) return _;
     const coeffVar = mult;
     const constTerm = mult * b;
     const signVar = coeffVar >= 0 ? '+' : '-';
     const signConst = constTerm >= 0 ? '+' : '-';
-    return `(${signVar}${Math.abs(coeffVar)}${variable} ${signConst} ${Math.abs(constTerm)})`;
+    return `(${signVar}${Math.abs(coeffVar)}${variable}${signConst}${Math.abs(constTerm)})`;
   });
 
   return s;
+}
+
+/**
+ * Greatest common divisor helper
+ */
+function gcd(a: number, b: number): number {
+  a = Math.round(Math.abs(a));
+  b = Math.round(Math.abs(b));
+  while (b) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a || 1;
+}
+
+/**
+ * Least common multiple helper
+ */
+function lcm(a: number, b: number): number {
+  if (a === 0 || b === 0) return 1;
+  return Math.abs(Math.round(a * b)) / gcd(a, b);
+}
+
+/**
+ * Direct standard vertex form matcher for Ellipse & Hyperbola:
+ * Examples:
+ *   (x - 1)^2 / 4 + (y + 2)^2 / 9 = 1
+ *   (x - 1)^2 / 4 - (y + 2)^2 / 9 = 1
+ *   (y + 2)^2 / 9 + (x - 1)^2 / 4 = 1
+ *   x^2 / 4 + y^2 / 9 = 1
+ *
+ * Directly extracts exact h, k, denX, denY to avoid floating-point loss and double-division bugs!
+ */
+function tryParseStandardVertexEllipseHyperbola(
+  clean: string,
+  lang: Language
+): ConicAnalysisResult | null {
+  // Regex pattern matching:
+  // (x+-h)^2/A  or  x^2/A   followed by   + or -   followed by   (y+-k)^2/B  or  y^2/B   = 1
+  const vertexFracPattern = /^(\(?([xy])([+-][\d.]+)?\)?\^2|[xy]\^2)\/([\d.]+)\s*([+-])\s*(\(?([xy])([+-][\d.]+)?\)?\^2|[xy]\^2)\/([\d.]+)=1$/i;
+  const match = clean.match(vertexFracPattern);
+  if (!match) return null;
+
+  const parseTerm = (termStr: string, fallbackVar: string) => {
+    const sm = termStr.match(/\(?([xy])([+-][\d.]+)?\)?\^2/i);
+    const variable = (sm ? sm[1] : fallbackVar).toLowerCase();
+    const shift = sm && sm[2] ? parseFloat(sm[2]) : 0;
+    // (x - h) -> h = -shift
+    return { variable, hOrK: -shift };
+  };
+
+  const term1 = parseTerm(match[1], 'x');
+  const den1 = parseFloat(match[4]);
+  const op = match[5]; // '+' for ellipse, '-' for hyperbola
+  const term2 = parseTerm(match[6], 'y');
+  const den2 = parseFloat(match[9]);
+
+  if (term1.variable === term2.variable) return null;
+  if (isNaN(den1) || isNaN(den2) || den1 <= 0 || den2 <= 0) return null;
+
+  const h = term1.variable === 'x' ? term1.hOrK : term2.hOrK;
+  const k = term1.variable === 'y' ? term1.hOrK : term2.hOrK;
+  const denX = term1.variable === 'x' ? den1 : den2;
+  const denY = term1.variable === 'y' ? den1 : den2;
+
+  // Sign associated with x and y
+  // In `term1 / den1 + term2 / den2 = 1`: both are positive
+  // In `term1 / den1 - term2 / den2 = 1`: term1 is positive, term2 is negative
+  const signTerm1 = 1;
+  const signTerm2 = op === '+' ? 1 : -1;
+  const signX = term1.variable === 'x' ? signTerm1 : signTerm2;
+  const signY = term1.variable === 'y' ? signTerm1 : signTerm2;
+
+  // Clear denominators: multiply by LCM or product of denX and denY
+  // (signX / denX) * (x - h)^2 + (signY / denY) * (y - k)^2 = 1
+  // Multiply by (denX * denY):
+  // (signX * denY) * (x - h)^2 + (signY * denX) * (y - k)^2 - (denX * denY) = 0
+  const coeffX2 = signX * denY;
+  const coeffY2 = signY * denX;
+  const coeffX = -2 * coeffX2 * h;
+  const coeffY = -2 * coeffY2 * k;
+  const coeffConst = coeffX2 * h * h + coeffY2 * k * k - denX * denY;
+
+  if (coeffX2 * coeffY2 > 0) {
+    // Both positive -> Ellipse
+    return solveEllipse(coeffX2, coeffY2, coeffX, coeffY, coeffConst, lang);
+  } else {
+    // Opposite signs -> Hyperbola
+    return solveHyperbola(coeffX2, coeffY2, coeffX, coeffY, coeffConst, lang);
+  }
+}
+
+/**
+ * Direct standard vertex form matcher for Parabolas:
+ * Examples:
+ *   (y - 2)^2 = 8(x - 1)
+ *   (x - 1)^2 = 4(y - 2)
+ *   y = (x - 1)^2
+ *   y = 2(x - 3)^2 + 4
+ *   (y + 1)^2 = -4x
+ *   x = -(y - 2)^2
+ */
+function tryParseStandardVertexParabola(
+  clean: string,
+  lang: Language
+): ConicAnalysisResult | null {
+  // Pattern 1: (quadVar - k)^2 = mult * (linVar - h) or quadVar^2 = mult * (linVar - h)
+  const pattern1 = /^(\(?([xy])([+-][\d.]+)?\)?\^2|[xy]\^2)=([+-]?[\d./]+)?\*?\(?([xy])([+-][\d.]+)?\)?$/i;
+  const m1 = clean.match(pattern1);
+  if (m1) {
+    const sm = m1[1].match(/\(?([xy])([+-][\d.]+)?\)?\^2/i);
+    const quadVar = (sm ? sm[1] : m1[1][0]).toLowerCase();
+    const quadShift = sm && sm[2] ? parseFloat(sm[2]) : 0;
+
+    let multStr = m1[4] || '1';
+    let mult = 1;
+    if (multStr === '+') mult = 1;
+    else if (multStr === '-') mult = -1;
+    else if (multStr.includes('/')) {
+      const [n, d] = multStr.split('/');
+      mult = parseFloat(n) / parseFloat(d);
+    } else {
+      mult = parseFloat(multStr);
+    }
+
+    const linVar = m1[5].toLowerCase();
+    const linShift = m1[6] ? parseFloat(m1[6]) : 0;
+
+    if (quadVar !== linVar && !isNaN(mult) && mult !== 0) {
+      // (quadVar + quadShift)^2 = mult * (linVar + linShift)
+      // quadVar^2 + 2*quadShift*quadVar - mult*linVar + (quadShift^2 - mult*linShift) = 0
+      const orientation = quadVar === 'y' ? 'horizontal' : 'vertical';
+      const A = 1;
+      const B = 2 * quadShift;
+      const C = -mult;
+      const D = quadShift * quadShift - mult * linShift;
+      return solveParabola(orientation, A, B, C, D, lang);
+    }
+  }
+
+  // Pattern 2: linVar = a * (quadVar - shift)^2 + k or linVar = (quadVar - shift)^2
+  const pattern2 = /^([xy])=([+-]?[\d./]+)?\*?(\(?([xy])([+-][\d.]+)?\)?\^2|[xy]\^2)([+-][\d./]+)?$/i;
+  const m2 = clean.match(pattern2);
+  if (m2) {
+    const linVar = m2[1].toLowerCase();
+    let aStr = m2[2] || '1';
+    let a = 1;
+    if (aStr === '+') a = 1;
+    else if (aStr === '-') a = -1;
+    else if (aStr.includes('/')) {
+      const [n, d] = aStr.split('/');
+      a = parseFloat(n) / parseFloat(d);
+    } else {
+      a = parseFloat(aStr);
+    }
+
+    const sm = m2[3].match(/\(?([xy])([+-][\d.]+)?\)?\^2/i);
+    const quadVar = (sm ? sm[1] : m2[3][0]).toLowerCase();
+    const quadShift = sm && sm[2] ? parseFloat(sm[2]) : 0;
+    const k = m2[6] ? parseFloat(m2[6]) : 0;
+
+    if (linVar !== quadVar && !isNaN(a) && a !== 0) {
+      // linVar = a * (quadVar + quadShift)^2 + k
+      // a * quadVar^2 + 2*a*quadShift*quadVar - linVar + (a*quadShift^2 + k) = 0
+      const orientation = quadVar === 'y' ? 'horizontal' : 'vertical';
+      const A = a;
+      const B = 2 * a * quadShift;
+      const C = -1;
+      const D = a * quadShift * quadShift + k;
+      return solveParabola(orientation, A, B, C, D, lang);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Divides polynomial terms inside a parenthesis by a divisor cleanly,
+ * preventing regex partial-match bugs on decimal digits.
+ */
+function divideInnerPolynomialTerms(inner: string, divisor: number): string {
+  let s = inner.replace(/\s+/g, '');
+  if (!s.startsWith('+') && !s.startsWith('-')) s = '+' + s;
+  const terms = s.match(/[+-][^+-]+/g) || [];
+  const result: string[] = [];
+
+  for (const t of terms) {
+    const isX2 = /x\^2/i.test(t);
+    const isY2 = /y\^2/i.test(t);
+    const hasX = /x/i.test(t) && !isX2;
+    const hasY = /y/i.test(t) && !isY2;
+    const numPart = t.replace(/\^2/g, '').replace(/[xyXY]/g, '');
+
+    let c = 1;
+    if (numPart === '+') c = 1;
+    else if (numPart === '-') c = -1;
+    else if (numPart.includes('/')) {
+      const [n, d] = numPart.split('/');
+      c = parseFloat(n) / parseFloat(d);
+    } else {
+      c = parseFloat(numPart);
+    }
+    if (isNaN(c)) c = 1;
+
+    const newC = c / divisor;
+    const sign = newC >= 0 ? '+' : '-';
+    const absVal = Math.abs(newC);
+    const varPart = isX2 ? 'x^2' : isY2 ? 'y^2' : hasX ? 'x' : hasY ? 'y' : '';
+    result.push(`${sign}${absVal}${varPart}`);
+  }
+
+  return result.join('');
 }
 
 /**
@@ -111,7 +332,6 @@ export function parseUniversalConic(
   }
 
   // 1. Detect unknown non-mathematical text like 'abc', 'test', 'hello'
-  // Allowed letters in conic formulas: x, y, X, Y
   const clean = normalizeMathString(trimmed);
 
   // 2. Detect rotated conic section with xy cross term (e.g. xy = 1, x^2 + 2xy + y^2 = 4)
@@ -158,8 +378,13 @@ export function parseUniversalConic(
     );
   }
 
-  // 5. Detect linear equations without any squared terms (e.g. 'x + y = 1', '2x - 3y + 5 = 0', 'y = 2x')
-  const hasSquaredPattern = /[xy]\^2/i.test(clean) || /\([xy][+-]?[\d./]*\)\^2/i.test(clean) || /\([xy][+-]?[\d./]*\)\s*\*?\s*\([xy][+-]?[\d./]*\)/i.test(clean);
+  // 5. Detect linear equations without any squared terms
+  const hasSquaredPattern =
+    /[xy]\^2/i.test(clean) ||
+    /\([xy][+-]?[\d./]*\)\^2/i.test(clean) ||
+    /\([+-]?[\d./]*[xy][+-]?[\d./]*\)\^2/i.test(clean) ||
+    /\([xy][+-]?[\d./]*\)\s*\*?\s*\([xy][+-]?[\d./]*\)/i.test(clean);
+
   if (!hasSquaredPattern) {
     throw new Error(
       lang === 'zh'
@@ -168,77 +393,22 @@ export function parseUniversalConic(
     );
   }
 
-  // If no equal sign is present, but has squared variable (e.g. y^2 - 4y - 8x + 12), automatically append = 0
+  // If no equal sign is present, but has squared variable, automatically append = 0
   let equationStr = clean;
   if (!equationStr.includes('=')) {
     equationStr += '=0';
   }
 
-  // Pre-expand binomial squares like (x - 3)^2 or (x - 3)*(x - 3)
-  equationStr = expandAlgebraicParentheses(equationStr);
-
-  // 6. Check Standard Fraction Ellipse / Hyperbola: (x-h)^2/a^2 +/- (y-k)^2/b^2 = 1
-  const simpleFrac = /^([xy])\^2\/([\d.]+)([+-])([xy])\^2\/([\d.]+)=1$/i;
-  const matchSimple = equationStr.match(simpleFrac);
-  if (matchSimple) {
-    const var1 = matchSimple[1].toLowerCase();
-    const den1 = parseFloat(matchSimple[2]);
-    const op = matchSimple[3];
-    const var2 = matchSimple[4].toLowerCase();
-    const den2 = parseFloat(matchSimple[5]);
-
-    if (var1 === var2) throw new Error(lang === 'zh' ? '方程中变量不能完全相同' : 'Variables cannot be identical.');
-    if (den1 <= 0 || den2 <= 0) throw new Error(lang === 'zh' ? '分母必须为正实数' : 'Denominators must be positive.');
-
-    let coeffX = 0, coeffY = 0;
-    if (var1 === 'x') {
-      coeffX = den2;
-      coeffY = op === '+' ? den1 : -den1;
-    } else {
-      coeffY = den2;
-      coeffX = op === '+' ? den1 : -den1;
-    }
-    const constE = -(den1 * den2);
-
-    if (coeffX * coeffY > 0) {
-      return solveEllipse(coeffX, coeffY, 0, 0, constE, lang);
-    } else {
-      return solveHyperbola(coeffX, coeffY, 0, 0, constE, lang);
-    }
+  // 6. First attempt: Direct match standard vertex form ellipse / hyperbola
+  const standardEllipseHyperbola = tryParseStandardVertexEllipseHyperbola(equationStr, lang);
+  if (standardEllipseHyperbola) {
+    return standardEllipseHyperbola;
   }
 
-  // 7. Check Vertex Form Parabola: (y-k)^2 = 2p(x-h) or (x-h)^2 = 2p(y-k)
-  const vertexParabolaRegex = /^\(([xy])([+-]?[\d./]+)?\)\^2=([+-]?[\d./]+)?(?:\*|\()?([xy])([+-]?[\d./]+)?\)?$/i;
-  const matchParabolaVertex = equationStr.match(vertexParabolaRegex);
-  if (matchParabolaVertex) {
-    const quadVar = matchParabolaVertex[1].toLowerCase();
-    const quadShiftStr = matchParabolaVertex[2] || '0';
-    const twoPStr = matchParabolaVertex[3] || '1';
-    const linVar = matchParabolaVertex[4].toLowerCase();
-    const linShiftStr = matchParabolaVertex[5] || '0';
-
-    if (quadVar !== linVar) {
-      const parseNum = (s: string) => {
-        if (!s || s === '+') return 1;
-        if (s === '-') return -1;
-        if (s.includes('/')) {
-          const [n, d] = s.split('/');
-          return parseFloat(n) / parseFloat(d);
-        }
-        return parseFloat(s);
-      };
-
-      const quadShift = parseNum(quadShiftStr);
-      const linShift = parseNum(linShiftStr);
-      const twoP = parseNum(twoPStr);
-
-      const orientation = quadVar === 'y' ? 'horizontal' : 'vertical';
-      const A = 1;
-      const B = 2 * quadShift;
-      const C = -twoP;
-      const D = quadShift * quadShift - twoP * linShift;
-      return solveParabola(orientation, A, B, C, D, lang);
-    }
+  // 7. Second attempt: Direct match standard vertex form parabola
+  const standardParabola = tryParseStandardVertexParabola(equationStr, lang);
+  if (standardParabola) {
+    return standardParabola;
   }
 
   // 8. General Polynomial Expansion: Split across '=' and collect terms
@@ -250,7 +420,10 @@ export function parseUniversalConic(
  * A x^2 + B y^2 + C x + D y + E = 0
  */
 function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalysisResult {
-  const parts = clean.split('=');
+  // Pre-expand binomial squares like (x - 3)^2 or (x - 3)*(x - 3)
+  const expanded = expandAlgebraicParentheses(clean);
+
+  const parts = expanded.split('=');
   const left = parts[0] || '';
   const right = parts[1] || '0';
 
@@ -264,32 +437,14 @@ function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalys
     let s = sideStr.trim();
     if (!s) return;
 
-    // Expand any fraction denominators on parenthesized polynomial terms, e.g. (1x^2 - 2x + 1)/25
+    // Expand any fraction denominators on parenthesized polynomial terms, e.g. (1x^2 - 2x + 1)/4
     s = s.replace(/\(([^)]+)\)\s*\/\s*([\d.]+)/gi, (_, inner, dStr) => {
       const d = parseFloat(dStr);
       if (isNaN(d) || d === 0) return inner;
-      const expVar = inner.replace(/([+-]?\s*[\d./]*)\s*([xyXY](?:\^2)?)/gi, (m: string, cStr: string, vStr: string) => {
-        let c = 1;
-        const trimC = cStr.replace(/\s+/g, '');
-        if (trimC === '' || trimC === '+') c = 1;
-        else if (trimC === '-') c = -1;
-        else if (trimC.includes('/')) {
-          const [n, den] = trimC.split('/');
-          c = parseFloat(n) / parseFloat(den);
-        } else c = parseFloat(trimC);
-        if (isNaN(c)) c = 1;
-        const newC = c / d;
-        return `${newC >= 0 ? '+' : ''}${newC}${vStr} `;
-      });
-      return expVar.replace(/([+-]\s*[\d.]+)(?![xyXY\^])/gi, (m: string, numStr: string) => {
-        const num = parseFloat(numStr.replace(/\s+/g, ''));
-        if (isNaN(num)) return m;
-        const newNum = num / d;
-        return `${newNum >= 0 ? '+' : ''}${newNum} `;
-      });
+      return divideInnerPolynomialTerms(inner, d);
     });
 
-    s = s.replace(/[()]/g, ' ');
+    s = s.replace(/[()]/g, ' ').replace(/\s+/g, '');
 
     if (!s.startsWith('+') && !s.startsWith('-')) s = '+' + s;
 
@@ -300,7 +455,7 @@ function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalys
       const hasX = /x/i.test(chunk) && !isX2;
       const hasY = /y/i.test(chunk) && !isY2;
 
-      let numStr = chunk.replace(/\^2/g, '').replace(/[xyXY]/g, '').trim();
+      let numStr = chunk.replace(/\^2/g, '').replace(/[xyXY]/g, '').replace(/\s+/g, '');
       let coeff = 1;
       if (numStr === '+') coeff = 1;
       else if (numStr === '-') coeff = -1;
@@ -369,5 +524,5 @@ function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalys
   );
 }
 
-// Keep backward compatibility export
+// Backward compatibility export
 export const parseNaturalEquation = parseUniversalConic;
