@@ -167,6 +167,57 @@ const quizBank: QuizQuestion[] = [
       pt: 'Vértice em (1, 2). 2p = 8 ⇒ p/2 = 2. Abre para a direita, foco em (1+2, 2) = (3, 2).',
       zh: '由 (y - k)² = 2p(x - h) 得顶点为 (1, 2)。2p = 8 ⇒ p/2 = 2。向右开口，焦点为 (1+2, 2) = (3, 2)。'
     }
+  },
+  {
+    id: 6,
+    equation: '4x^2 + 9y^2 - 8x - 36y + 4 = 0',
+    question: {
+      en: 'What are the Center O and Foci F coordinates of this non-origin ellipse?',
+      es: '¿Cuáles son el Centro O y los Focos F de esta elipse fuera del origen?',
+      fr: 'Quelles sont les coordonnées du Centre O et des Foyers F de cette ellipse ?',
+      pt: 'Quais são o Centro O e os Focos F desta elipse fora da origem?',
+      zh: '已知中心非原点椭圆方程 4x² + 9y² - 8x - 36y + 4 = 0，其中心与焦点坐标是？'
+    },
+    options: {
+      en: [
+        'Center O(1, 2), Foci F₁(1 - √5, 2), F₂(1 + √5, 2)',
+        'Center O(2, 1), Foci F₁(2 - √5, 1), F₂(2 + √5, 1)',
+        'Center O(1, 2), Foci F₁(1, 2 - √5), F₂(1, 2 + √5)',
+        'Center O(0, 0), Foci F₁(-√5, 0), F₂(√5, 0)'
+      ],
+      es: [
+        'Centro O(1, 2), Focos F₁(1 - √5, 2), F₂(1 + √5, 2)',
+        'Centro O(2, 1), Focos F₁(2 - √5, 1), F₂(2 + √5, 1)',
+        'Centro O(1, 2), Focos F₁(1, 2 - √5), F₂(1, 2 + √5)',
+        'Centro O(0, 0), Focos F₁(-√5, 0), F₂(√5, 0)'
+      ],
+      fr: [
+        'Centre O(1, 2), Foyers F₁(1 - √5, 2), F₂(1 + √5, 2)',
+        'Centre O(2, 1), Foyers F₁(2 - √5, 1), F₂(2 + √5, 1)',
+        'Centre O(1, 2), Foyers F₁(1, 2 - √5), F₂(1, 2 + √5)',
+        'Centre O(0, 0), Foyers F₁(-√5, 0), F₂(√5, 0)'
+      ],
+      pt: [
+        'Centro O(1, 2), Focos F₁(1 - √5, 2), F₂(1 + √5, 2)',
+        'Centro O(2, 1), Focos F₁(2 - √5, 1), F₂(2 + √5, 1)',
+        'Centro O(1, 2), Focos F₁(1, 2 - √5), F₂(1, 2 + √5)',
+        'Centro O(0, 0), Focos F₁(-√5, 0), F₂(√5, 0)'
+      ],
+      zh: [
+        '中心 O(1, 2)，焦点 F₁(1 - √5, 2)，F₂(1 + √5, 2)',
+        '中心 O(2, 1)，焦点 F₁(2 - √5, 1)，F₂(2 + √5, 1)',
+        '中心 O(1, 2)，焦点 F₁(1, 2 - √5)，F₂(1, 2 + √5)',
+        '中心 O(0, 0)，焦点 F₁(-√5, 0)，F₂(√5, 0)'
+      ]
+    },
+    correctIdx: 0,
+    explanation: {
+      en: 'Completing the square gives (x-1)²/9 + (y-2)²/4 = 1. Center O(1, 2). a²=9, b²=4 ⇒ c=√5. Major axis is horizontal, so Foci offset horizontally: (1 ± √5, 2).',
+      es: 'Completando el cuadrado se obtiene (x-1)²/9 + (y-2)²/4 = 1. Centro en (1, 2). a²=9, b²=4 ⇒ c=√5. Eje mayor horizontal, focos en (1 ± √5, 2).',
+      fr: 'En complétant le carré : (x-1)²/9 + (y-2)²/4 = 1. Centre O(1, 2). a²=9, b²=4 ⇒ c=√5. Axe majeur horizontal, foyers en (1 ± √5, 2).',
+      pt: 'Completando quadrados: (x-1)²/9 + (y-2)²/4 = 1. Centro O(1, 2). a²=9, b²=4 ⇒ c=√5. Eixo maior horizontal, focos em (1 ± √5, 2).',
+      zh: '配方可得标准方程 (x-1)²/9 + (y-2)²/4 = 1。中心 O(1, 2)，a²=9, b²=4 ⇒ c=√(a²-b²)=√5。长轴平行于 x 轴（水平方向），焦点由中心沿长轴左右偏移 c，坐标为 (1 ± √5, 2)。'
+    }
   }
 ];
 

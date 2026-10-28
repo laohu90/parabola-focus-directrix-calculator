@@ -175,67 +175,48 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
     }
   };
 
-  // Presets cleanly replace the input
+  const handleSelectPreset = (eqStr: string) => {
+    try {
+      setNaturalEq(eqStr);
+      setInputError(null);
+      const res = parseUniversalConic(eqStr, lang);
+      onSolve(res, eqStr);
+    } catch (err: any) {
+      setInputError(err.message);
+    }
+  };
+
+  // Presets cleanly replace the input through a single unified formula pipeline
   const presets = [
     {
-      badge: lang === 'zh' ? '抛物线配方' : 'Parabola',
-      latex: 'y^2 - 4y - 8x + 12 = 0',
-      action: () => {
-        setNaturalEq('y^2 - 4y - 8x + 12 = 0');
-        setInputError(null);
-        const res = solveParabola('horizontal', 1, -4, -8, 12, lang);
-        onSolve(res, 'y^2 - 4y - 8x + 12 = 0');
-      }
+      badge: lang === 'zh' ? '抛物线配方' : 'Parabola Square',
+      rawEq: 'y^2 - 4y - 8x + 12 = 0',
+      latex: 'y^2 - 4y - 8x + 12 = 0'
+    },
+    {
+      badge: lang === 'zh' ? '椭圆(c无理数,中心非原点)' : 'Ellipse (Irrational c)',
+      rawEq: '4x^2 + 9y^2 - 8x - 36y + 4 = 0',
+      latex: '4x^2 + 9y^2 - 8x - 36y + 4 = 0'
     },
     {
       badge: lang === 'zh' ? '椭圆标准式' : 'Ellipse Frac',
-      latex: '\\frac{x^2}{25} + \\frac{y^2}{16} = 1',
-      action: () => {
-        setNaturalEq('x^2/25 + y^2/16 = 1');
-        setInputError(null);
-        const res = parseUniversalConic('x^2/25 + y^2/16 = 1', lang);
-        onSolve(res, 'x^2/25 + y^2/16 = 1');
-      }
+      rawEq: 'x^2/25 + y^2/16 = 1',
+      latex: '\\frac{x^2}{25} + \\frac{y^2}{16} = 1'
     },
     {
-      badge: lang === 'zh' ? '椭圆一般式配方' : 'Ellipse Square',
-      latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0',
-      action: () => {
-        setNaturalEq('4x^2 + 9y^2 - 16x + 18y - 11 = 0');
-        setInputError(null);
-        const res = solveEllipse(4, 9, -16, 18, -11, lang);
-        onSolve(res, '4x^2 + 9y^2 - 16x + 18y - 11 = 0');
-      }
+      badge: lang === 'zh' ? '椭圆一般式配方' : 'Ellipse General',
+      rawEq: '4x^2 + 9y^2 - 16x + 18y - 11 = 0',
+      latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0'
     },
     {
-      badge: lang === 'zh' ? '双曲线标准式' : 'Hyperbola',
-      latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1',
-      action: () => {
-        setNaturalEq('x^2/16 - y^2/9 = 1');
-        setInputError(null);
-        const res = parseUniversalConic('x^2/16 - y^2/9 = 1', lang);
-        onSolve(res, 'x^2/16 - y^2/9 = 1');
-      }
-    },
-    {
-      badge: lang === 'zh' ? 'Unicode输入' : 'Unicode y²',
-      latex: 'y² = 8x',
-      action: () => {
-        setNaturalEq('y² = 8x');
-        setInputError(null);
-        const res = parseUniversalConic('y² = 8x', lang);
-        onSolve(res, 'y² = 8x');
-      }
+      badge: lang === 'zh' ? '双曲线标准式' : 'Hyperbola Frac',
+      rawEq: 'x^2/16 - y^2/9 = 1',
+      latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1'
     },
     {
       badge: lang === 'zh' ? '双曲线一般式' : 'Hyperbola Eq',
-      latex: '4x^2 - 9y^2 = 36',
-      action: () => {
-        setNaturalEq('4x^2 - 9y^2 = 36');
-        setInputError(null);
-        const res = solveHyperbola(4, -9, 0, 0, -36, lang);
-        onSolve(res, '4x^2 - 9y^2 = 36');
-      }
+      rawEq: '4x^2 - 9y^2 = 36',
+      latex: '4x^2 - 9y^2 = 36'
     }
   ];
 
@@ -550,7 +531,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
               <button
                 key={idx}
                 type="button"
-                onClick={p.action}
+                onClick={() => handleSelectPreset(p.rawEq)}
                 className="p-3 rounded-lg border border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/40 text-left transition-all group shadow-2xs"
               >
                 <div className="text-[11px] text-slate-500 mb-1 font-medium">{p.badge}</div>

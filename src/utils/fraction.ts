@@ -110,3 +110,80 @@ export function formatShiftTerm(variable: 'x' | 'y', shift: number): string {
     return `\\left(${variable} + \\frac{${absVal}}{${frac.den}}\\right)`;
   }
 }
+
+/**
+ * Formats sqrt(valSq) in simplified LaTeX radical form if close to integer/fraction,
+ * e.g. 5 -> \sqrt{5}, 12 -> 2\sqrt{3}, 9 -> 3, 5/4 -> \frac{\sqrt{5}}{2}
+ */
+export function formatExactSqrtLaTeX(valSq: number): string {
+  if (valSq < 0) return 'i';
+  if (Math.abs(valSq) < 1e-7) return '0';
+
+  const frac = toFraction(valSq);
+  const numSq = Math.abs(frac.num);
+  const denSq = Math.abs(frac.den);
+
+  const simplifyIntSqrt = (n: number): { outside: number; inside: number } => {
+    let outside = 1;
+    let inside = n;
+    for (let d = Math.floor(Math.sqrt(inside)); d >= 2; d--) {
+      if (inside % (d * d) === 0) {
+        outside *= d;
+        inside /= (d * d);
+      }
+    }
+    return { outside, inside };
+  };
+
+  const denRoot = Math.sqrt(denSq);
+  const denIsInt = Math.abs(denRoot - Math.round(denRoot)) < 1e-5;
+
+  if (denIsInt) {
+    const kDen = Math.round(denRoot);
+    const { outside, inside } = simplifyIntSqrt(numSq);
+    let numStr = '';
+    if (inside === 1) numStr = `${outside}`;
+    else if (outside === 1) numStr = `\\sqrt{${inside}}`;
+    else numStr = `${outside}\\sqrt{${inside}}`;
+
+    if (kDen === 1) return numStr;
+    return `\\frac{${numStr}}{${kDen}}`;
+  }
+
+  const { outside, inside } = simplifyIntSqrt(numSq * denSq);
+  let numStr = '';
+  if (inside === 1) numStr = `${outside}`;
+  else if (outside === 1) numStr = `\\sqrt{${inside}}`;
+  else numStr = `${outside}\\sqrt{${inside}}`;
+
+  return `\\frac{${numStr}}{${denSq}}`;
+}
+
+/**
+ * Formats (h ± c) or (h - c) or (h + c) in LaTeX when c = sqrt(valSq) and h is center offset
+ */
+export function formatOffsetRadicalLaTeX(h: number, valSq: number, sign: '+' | '-' | '±' = '±'): string {
+  const cRad = formatExactSqrtLaTeX(valSq);
+
+  if (!cRad.includes('\\sqrt')) {
+    const cNum = parseFloat(cRad);
+    if (!isNaN(cNum)) {
+      if (sign === '+') return formatFractionLaTeX(h + cNum);
+      if (sign === '-') return formatFractionLaTeX(h - cNum);
+      return `${formatFractionLaTeX(h - cNum)}, \\ ${formatFractionLaTeX(h + cNum)}`;
+    }
+  }
+
+  const hFrac = toFraction(h);
+  if (hFrac.num === 0) {
+    if (sign === '+') return cRad;
+    if (sign === '-') return `-${cRad}`;
+    return `\\pm ${cRad}`;
+  }
+
+  const hStr = formatFractionLaTeX(hFrac);
+  if (sign === '+') return `${hStr} + ${cRad}`;
+  if (sign === '-') return `${hStr} - ${cRad}`;
+  return `${hStr} \\pm ${cRad}`;
+}
+

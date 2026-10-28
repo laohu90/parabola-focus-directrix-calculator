@@ -459,10 +459,17 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
           {/* Card 2: Foci */}
           <div className="p-3.5 rounded-lg bg-slate-50/90 border border-slate-200/80">
             <div className="text-xs font-semibold text-slate-500 mb-1">{lang === 'zh' ? '焦点坐标 F' : 'Foci F'}</div>
-            <div className="font-bold text-purple-700 text-sm sm:text-base">
+            <div className="font-bold text-purple-700 text-sm sm:text-base space-y-1">
               {conic.foci.map((f, idx) => (
                 <div key={idx}>
-                  <MathView math={`${f.label}\\left(${formatFractionLaTeX(f.xFrac)}, ${formatFractionLaTeX(f.yFrac)}\\right)`} />
+                  {f.latex ? (
+                    <MathView math={f.latex} />
+                  ) : (
+                    <MathView math={`${f.label}\\left(${formatFractionLaTeX(f.xFrac)}, ${formatFractionLaTeX(f.yFrac)}\\right)`} />
+                  )}
+                  <div className="text-[10px] text-slate-400 font-mono font-normal">
+                    ({f.x.toFixed(2).replace(/\.00$/, '')}, {f.y.toFixed(2).replace(/\.00$/, '')})
+                  </div>
                 </div>
               ))}
             </div>
@@ -479,14 +486,19 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
             </div>
           </div>
 
-          {/* Card 4: Latus Rectum */}
+          {/* Card 4: Latus Rectum & 2p / 4p Textbook Notation */}
           <div className="p-3.5 rounded-lg bg-slate-50/90 border border-slate-200/80">
             <div className="text-xs font-semibold text-slate-500 mb-1">{tSummary.latusRectum}</div>
             <div className="font-bold text-amber-700 text-base sm:text-lg">
               <MathView math={conic.latusRectum.latex} />
             </div>
-            <div className="text-xs text-slate-400 mt-1 font-mono">
-              ≈ {conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}
+            <div className="text-xs text-slate-500 mt-1 font-mono">
+              <span>≈ {conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}</span>
+              {conic.conicType === 'parabola' && (
+                <span className="block text-[10px] text-slate-400 font-sans mt-0.5">
+                  {lang === 'zh' ? '中式 2p = 通径长 | 美式 4p_US' : '2p = Latus Rectum (CN) / 4p_US (US)'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -680,7 +692,7 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                     {idx + 1}
                   </span>
                   <h4 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                    {step.title}
+                    {lang === 'zh' ? `第 ${idx + 1} 步：${step.title.replace(/^第[一二三四五六七八九十0-9]+步[：:]\s*/, '')}` : `Step ${idx + 1}: ${step.title.replace(/^Step \d+:\s*/i, '')}`}
                   </h4>
                 </div>
                 {step.highlight && (
@@ -759,7 +771,7 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
                       {currentStepIdx + 1}
                     </span>
                     <h4 className="text-base sm:text-lg font-bold text-slate-900">
-                      {conic.steps[currentStepIdx].title}
+                      {lang === 'zh' ? `第 ${currentStepIdx + 1} 步：${conic.steps[currentStepIdx].title.replace(/^第[一二三四五六七八九十0-9]+步[：:]\s*/, '')}` : `Step ${currentStepIdx + 1}: ${conic.steps[currentStepIdx].title.replace(/^Step \d+:\s*/i, '')}`}
                     </h4>
                   </div>
                   {conic.steps[currentStepIdx].highlight && (

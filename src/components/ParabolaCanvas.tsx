@@ -19,6 +19,58 @@ interface ParabolaCanvasProps {
   lang: Language;
 }
 
+// Helper interface for point screen coordinates
+interface ScreenPoint {
+  x: number;
+  y: number;
+  label: string;
+}
+
+// Dynamic label positioning helper to prevent label overlaps in SVG canvas
+interface LabelStyle {
+  x: number;
+  y: number;
+  textAnchor: 'start' | 'middle' | 'end';
+}
+
+function calculateSmartLabel(
+  target: ScreenPoint,
+  otherPoints: ScreenPoint[],
+  defaultDx = 10,
+  defaultDy = -8,
+  defaultAnchor: 'start' | 'middle' | 'end' = 'start'
+): LabelStyle {
+  let dx = defaultDx;
+  let dy = defaultDy;
+  let anchor = defaultAnchor;
+
+  for (const other of otherPoints) {
+    const dist = Math.hypot(target.x - other.x, target.y - other.y);
+    if (dist < 45 && dist > 0.1) {
+      // Points are too close! Adjust position based on relative quadrant
+      if (target.x < other.x) {
+        dx = -Math.abs(defaultDx) - 8;
+        anchor = 'end';
+      } else if (target.x > other.x) {
+        dx = Math.abs(defaultDx) + 8;
+        anchor = 'start';
+      }
+
+      if (target.y < other.y) {
+        dy = -Math.abs(defaultDy) - 6;
+      } else if (target.y > other.y) {
+        dy = Math.abs(defaultDy) + 14;
+      }
+    }
+  }
+
+  return {
+    x: target.x + dx,
+    y: target.y + dy,
+    textAnchor: anchor
+  };
+}
+
 export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) => {
   const t = translations[lang].canvas;
 
@@ -189,7 +241,6 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
     const orientation = conic.parameters.orientation || 'horizontal';
     const direction = conic.parameters.direction || 'right';
 
-    // Endpoints of latus rectum chord (through focus, perpendicular to axis)
     let l1 = { x: 0, y: 0 };
     let l2 = { x: 0, y: 0 };
 
@@ -201,7 +252,6 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
       l2 = { x: focus.x - p, y: focus.y };
     }
 
-    // Directrix foot opposite vertex
     const dirFoot = {
       x: directrix.type === 'x' ? directrix.val : vertex.x,
       y: directrix.type === 'y' ? directrix.val : vertex.y
@@ -302,6 +352,131 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
     return { xTicks, yTicks };
   }, [scale, fromScreenX, fromScreenY, width, height]);
 
+  // Compute screen points & anti-collision label positions
+  const labelPositions = useMemo(() => {
+    const allScreenPts: ScreenPoint[] = [];
+
+    // 1. Main Center / Primary Vertex
+    const centerPt: ScreenPoint = {
+      x: toScreenX(conic.centerOrVertex.x),
+      y: toScreenY(conic.centerOrVertex.y),
+      label: conic.centerOrVertex.label
+    };
+    allScreenPts.push(centerPt);
+
+    // 2. Vertices (V1, V2, etc)
+    const vertexPts: ScreenPoint[] = conic.vertices.map((v) => ({
+      x: toScreenX(v.x),
+      y: toScreenY(v.y),
+      label: v.label
+    }));
+    allScreenPts.push(...vertexPts);
+
+    // 3. Foci
+    const fociPts: ScreenPoint[] = conic.foci.map((f) => ({
+      x: toScreenX(f.x),
+      y: toScreenY(f.y),
+      label: f.label
+    }));
+    allScreenPts.push(...fociPts);
+
+    // 4. Latus Rectum endpoints
+    let l1Pt: ScreenPoint | null = null;
+    let l2Pt: ScreenPoint | null = null;
+    if (parabolaDetails) {
+      l1Pt = {
+        x: toScreenX(parabolaDetails.l1.x),
+        y: toScreenY(parabolaDetails.l1.y),
+        label: 'L₁'
+      };
+      l2Pt = {
+        x: toScreenX(parabolaDetails.l2.x),
+        y: toScreenY(parabolaDetails.l2.y),
+        label: 'L₂'
+      };
+      allScreenPts.push(l1Pt, l2Pt);
+    }
+
+    // 5. Point P
+    let pointPPt: ScreenPoint | null = null;
+    if (pointPData) {
+      pointPPt = {
+        x: toScreenX(pointPData.px),
+        y: toScreenY(pointPData.py),
+        label: 'P'
+      };
+      allScreenPts.push(pointPPt);
+    }
+
+    // Calculate smart styles
+    const centerStyle = calculateSmartLabel(
+      centerPt,
+      allScreenPts.filter((p) => p !== centerPt),
+      -12,
+      18,
+      'end'
+    );
+
+    const vertexStyles = vertexPts.map((pt) =>
+      calculateSmartLabel(
+        pt,
+        allScreenPts.filter((p) => p !== pt),
+        pt.x < centerPt.x ? -10 : 10,
+        -8,
+        pt.x < centerPt.x ? 'end' : 'start'
+      )
+    );
+
+    const fociStyles = fociPts.map((pt) =>
+      calculateSmartLabel(
+        pt,
+        allScreenPts.filter((p) => p !== pt),
+        pt.x < centerPt.x ? -10 : 10,
+        -8,
+        pt.x < centerPt.x ? 'end' : 'start'
+      )
+    );
+
+    const l1Style = l1Pt
+      ? calculateSmartLabel(
+          l1Pt,
+          allScreenPts.filter((p) => p !== l1Pt),
+          10,
+          -6,
+          'start'
+        )
+      : null;
+
+    const l2Style = l2Pt
+      ? calculateSmartLabel(
+          l2Pt,
+          allScreenPts.filter((p) => p !== l2Pt),
+          10,
+          14,
+          'start'
+        )
+      : null;
+
+    const pStyle = pointPPt
+      ? calculateSmartLabel(
+          pointPPt,
+          allScreenPts.filter((p) => p !== pointPPt),
+          12,
+          -10,
+          'start'
+        )
+      : null;
+
+    return {
+      centerStyle,
+      vertexStyles,
+      fociStyles,
+      l1Style,
+      l2Style,
+      pStyle
+    };
+  }, [conic, parabolaDetails, pointPData, toScreenX, toScreenY]);
+
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -322,7 +497,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
 
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const coords = getSVGCoordinates(e.clientX, e.clientY);
-    
+
     if (pointPData && layers.proof) {
       const pScreenX = toScreenX(pointPData.px);
       const pScreenY = toScreenY(pointPData.py);
@@ -409,7 +584,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
         ctx.drawImage(image, 0, 0, exportCanvas.width, exportCanvas.height);
-        
+
         const pngURL = exportCanvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
         downloadLink.href = pngURL;
@@ -431,12 +606,10 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
           <Crosshair className="w-5 h-5 text-sky-600" />
           <div>
             <span className="text-sm sm:text-base font-bold text-slate-900 block leading-tight">
-              {lang === 'zh' ? '抛物线焦点与准线几何坐标图' : t.title}
+              {t.title}
             </span>
             <span className="text-xs text-slate-500 font-normal">
-              {lang === 'zh'
-                ? '直观展示 焦点 F、准线 l、顶点 V、通径 2p 与半距 p/2 标尺'
-                : 'Interactive Focus F, Directrix l, Vertex V & Latus Rectum'}
+              {t.subtitle}
             </span>
           </div>
         </div>
@@ -476,13 +649,13 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
               }`}
             >
               <Layers className="w-3.5 h-3.5 text-sky-600" />
-              <span>{lang === 'zh' ? '图层开关' : 'Layers'}</span>
+              <span>{t.layerMenu}</span>
             </button>
 
             {showLayerMenu && (
-              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 z-30 space-y-1.5 text-xs">
+              <div className="absolute right-0 top-full mt-1.5 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 z-30 space-y-1.5 text-xs">
                 <div className="font-bold text-slate-700 px-1 pb-1 border-b border-slate-100">
-                  {lang === 'zh' ? '图形图层开关' : 'Display Layers'}
+                  {t.layerMenuTitle}
                 </div>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -491,7 +664,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, curve: e.target.checked }))}
                     className="accent-sky-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '抛物线曲线' : 'Conic Curve'}</span>
+                  <span>{t.layerConic}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -500,7 +673,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, foci: e.target.checked }))}
                     className="accent-purple-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '焦点 F 与顶点 V' : 'Focus F & Vertex V'}</span>
+                  <span>{t.layerFocusVertex}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -509,7 +682,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, directrix: e.target.checked }))}
                     className="accent-rose-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '准线方程 l' : 'Directrix l'}</span>
+                  <span>{t.layerDirectrix}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -518,7 +691,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, latus: e.target.checked }))}
                     className="accent-amber-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '通径弦 (2p)' : 'Latus Rectum (2p)'}</span>
+                  <span>{t.layerLatus}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -527,7 +700,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, dimensions: e.target.checked }))}
                     className="accent-indigo-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '半距标尺 (p/2)' : 'Focal Distance (p/2)'}</span>
+                  <span>{t.layerDimensions}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -536,7 +709,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, grid: e.target.checked }))}
                     className="accent-slate-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '坐标网格与刻度' : 'Grid & Ticks'}</span>
+                  <span>{t.layerGrid}</span>
                 </label>
                 <label className="flex items-center gap-2 px-1 py-1 hover:bg-slate-50 rounded cursor-pointer">
                   <input
@@ -545,7 +718,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                     onChange={(e) => setLayers((l) => ({ ...l, proof: e.target.checked }))}
                     className="accent-emerald-600 rounded"
                   />
-                  <span>{lang === 'zh' ? '动点定义验证连线' : 'Point P Proof Lines'}</span>
+                  <span>{t.layerProof}</span>
                 </label>
               </div>
             )}
@@ -555,10 +728,10 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
           <button
             onClick={handleDownloadPNG}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
-            title={lang === 'zh' ? '导出高清画板图片 (PNG)' : 'Export High-Res PNG'}
+            title={t.exportPng}
           >
             <Download className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden sm:inline">{lang === 'zh' ? '保存坐标图' : 'Export PNG'}</span>
+            <span className="hidden sm:inline">{t.exportPng}</span>
           </button>
         </div>
       </div>
@@ -618,13 +791,13 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                   strokeDasharray="4,4"
                 />
                 <text
-                  x={axis.type === 'x' ? toScreenX(axis.val) + 6 : width - 70}
+                  x={axis.type === 'x' ? toScreenX(axis.val) + 6 : width - 75}
                   y={axis.type === 'x' ? 36 : toScreenY(axis.val) - 6}
                   fontSize="10"
                   fill="#64748B"
                   fontWeight="bold"
                 >
-                  {lang === 'zh' ? '对称轴' : 'Axis'}: {axis.type}={axis.val.toFixed(1).replace(/\.0$/, '')}
+                  {t.axisLabel}: {axis.type}={axis.val.toFixed(1).replace(/\.0$/, '')}
                 </text>
               </g>
             ))}
@@ -657,7 +830,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 <rect
                   x={d.type === 'x' ? toScreenX(d.val) + 4 : 20}
                   y={d.type === 'x' ? 14 : toScreenY(d.val) - 22}
-                  width="110"
+                  width="115"
                   height="18"
                   rx="4"
                   fill="#FFE4E6"
@@ -671,13 +844,13 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                   fontWeight="bold"
                   fill="#BE123C"
                 >
-                  {lang === 'zh' ? '准线 l: ' : 'Directrix l: '}{d.type}={d.val.toFixed(2).replace(/\.00$/, '')}
+                  {t.directrixLabel}: {d.type}={d.val.toFixed(2).replace(/\.00$/, '')}
                 </text>
               </g>
             ))}
 
           {/* Latus Rectum Chord (通径) for Parabola */}
-          {layers.latus && parabolaDetails && (
+          {layers.latus && parabolaDetails && labelPositions.l1Style && labelPositions.l2Style && (
             <g className="latus-rectum-layer">
               <line
                 x1={toScreenX(parabolaDetails.l1.x)}
@@ -691,8 +864,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
               <circle cx={toScreenX(parabolaDetails.l1.x)} cy={toScreenY(parabolaDetails.l1.y)} r="3.5" fill="#D97706" />
               <circle cx={toScreenX(parabolaDetails.l2.x)} cy={toScreenY(parabolaDetails.l2.y)} r="3.5" fill="#D97706" />
               <text
-                x={toScreenX(parabolaDetails.l1.x) + 6}
-                y={toScreenY(parabolaDetails.l1.y) - 4}
+                x={labelPositions.l1Style.x}
+                y={labelPositions.l1Style.y}
+                textAnchor={labelPositions.l1Style.textAnchor}
                 fontSize="10"
                 fill="#B45309"
                 fontWeight="bold"
@@ -700,8 +874,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 L₁({parabolaDetails.l1.x.toFixed(1)}, {parabolaDetails.l1.y.toFixed(1)})
               </text>
               <text
-                x={toScreenX(parabolaDetails.l2.x) + 6}
-                y={toScreenY(parabolaDetails.l2.y) + 12}
+                x={labelPositions.l2Style.x}
+                y={labelPositions.l2Style.y}
+                textAnchor={labelPositions.l2Style.textAnchor}
                 fontSize="10"
                 fill="#B45309"
                 fontWeight="bold"
@@ -715,7 +890,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 fill="#B45309"
                 fontWeight="bold"
               >
-                {lang === 'zh' ? '通径长 2p = ' : '2p = '}{(parabolaDetails.p * 2).toFixed(2).replace(/\.00$/, '')}
+                {t.latusLength} = {(parabolaDetails.p * 2).toFixed(2).replace(/\.00$/, '')}
               </text>
             </g>
           )}
@@ -772,10 +947,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
               <path key={idx} d={pathStr} fill="none" stroke="#0284C7" strokeWidth="2.8" strokeLinecap="round" />
             ))}
 
-          {/* Center or Vertex with Coordinate Droplines */}
+          {/* Center or Main Vertex with Coordinate Droplines & Anti-overlap Label */}
           {layers.foci && (
             <g>
-              {/* Projection dashed lines to axes */}
               <line
                 x1={toScreenX(conic.centerOrVertex.x)}
                 y1={toScreenY(conic.centerOrVertex.y)}
@@ -795,7 +969,6 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 strokeDasharray="2,2"
               />
 
-              {/* Vertex circle */}
               <circle
                 cx={toScreenX(conic.centerOrVertex.x)}
                 cy={toScreenY(conic.centerOrVertex.y)}
@@ -805,8 +978,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 strokeWidth="2"
               />
               <text
-                x={toScreenX(conic.centerOrVertex.x) - 12}
-                y={toScreenY(conic.centerOrVertex.y) + 18}
+                x={labelPositions.centerStyle.x}
+                y={labelPositions.centerStyle.y}
+                textAnchor={labelPositions.centerStyle.textAnchor}
                 fontSize="12"
                 fontWeight="bold"
                 fill="#0F172A"
@@ -816,40 +990,71 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
             </g>
           )}
 
-          {/* Foci with Coordinate Droplines */}
+          {/* Additional Vertices (V1, V2) if present */}
           {layers.foci &&
-            conic.foci.map((f, idx) => (
-              <g key={`f-${idx}`}>
-                {/* Projection to axes */}
-                <line
-                  x1={toScreenX(f.x)}
-                  y1={toScreenY(f.y)}
-                  x2={toScreenX(f.x)}
-                  y2={toScreenY(0)}
-                  stroke="#E9D5FF"
-                  strokeWidth="1"
-                  strokeDasharray="2,2"
-                />
-                <line
-                  x1={toScreenX(f.x)}
-                  y1={toScreenY(f.y)}
-                  x2={toScreenX(0)}
-                  y2={toScreenY(f.y)}
-                  stroke="#E9D5FF"
-                  strokeWidth="1"
-                  strokeDasharray="2,2"
-                />
+            conic.vertices.map((v, idx) => {
+              const style = labelPositions.vertexStyles[idx];
+              if (!style) return null;
+              return (
+                <g key={`v-${idx}`}>
+                  <circle cx={toScreenX(v.x)} cy={toScreenY(v.y)} r="5.5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                  <text
+                    x={style.x}
+                    y={style.y}
+                    textAnchor={style.textAnchor}
+                    fontSize="11"
+                    fontWeight="bold"
+                    fill="#1D4ED8"
+                  >
+                    {v.label}({v.x.toFixed(1).replace(/\.0$/, '')}, {v.y.toFixed(1).replace(/\.0$/, '')})
+                  </text>
+                </g>
+              );
+            })}
 
-                {/* Focus circle */}
-                <circle cx={toScreenX(f.x)} cy={toScreenY(f.y)} r="6.5" fill="#7C3AED" stroke="#FFFFFF" strokeWidth="2" />
-                <text x={toScreenX(f.x) + 9} y={toScreenY(f.y) - 9} fontSize="12" fontWeight="bold" fill="#6D28D9">
-                  {f.label}({f.x.toFixed(1).replace(/\.0$/, '')}, {f.y.toFixed(1).replace(/\.0$/, '')})
-                </text>
-              </g>
-            ))}
+          {/* Foci with Coordinate Droplines & Anti-overlap Labels */}
+          {layers.foci &&
+            conic.foci.map((f, idx) => {
+              const style = labelPositions.fociStyles[idx];
+              if (!style) return null;
+              return (
+                <g key={`f-${idx}`}>
+                  <line
+                    x1={toScreenX(f.x)}
+                    y1={toScreenY(f.y)}
+                    x2={toScreenX(f.x)}
+                    y2={toScreenY(0)}
+                    stroke="#E9D5FF"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                  <line
+                    x1={toScreenX(f.x)}
+                    y1={toScreenY(f.y)}
+                    x2={toScreenX(0)}
+                    y2={toScreenY(f.y)}
+                    stroke="#E9D5FF"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+
+                  <circle cx={toScreenX(f.x)} cy={toScreenY(f.y)} r="6.5" fill="#7C3AED" stroke="#FFFFFF" strokeWidth="2" />
+                  <text
+                    x={style.x}
+                    y={style.y}
+                    textAnchor={style.textAnchor}
+                    fontSize="12"
+                    fontWeight="bold"
+                    fill="#6D28D9"
+                  >
+                    {f.label}({f.x.toFixed(1).replace(/\.0$/, '')}, {f.y.toFixed(1).replace(/\.0$/, '')})
+                  </text>
+                </g>
+              );
+            })}
 
           {/* Interactive Point P on Curve & Proof Lines */}
-          {layers.proof && pointPData && (
+          {layers.proof && pointPData && labelPositions.pStyle && (
             <g>
               {conic.conicType === 'parabola' && (
                 <>
@@ -925,8 +1130,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                 style={{ cursor: 'grab', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
               />
               <text
-                x={toScreenX(pointPData.px) + 10}
-                y={toScreenY(pointPData.py) - 10}
+                x={labelPositions.pStyle.x}
+                y={labelPositions.pStyle.y}
+                textAnchor={labelPositions.pStyle.textAnchor}
                 fontSize="12"
                 fill="#047857"
                 fontWeight="bold"
@@ -948,9 +1154,9 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
         {layers.proof && pointPData && (
           <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-xs border border-emerald-200 rounded-lg p-3 shadow-xs text-xs sm:text-sm">
             <div className="font-bold text-emerald-800 mb-1">
-              {conic.conicType === 'parabola' && `抛物线第一定义验证：${pointPData.label}`}
-              {conic.conicType === 'ellipse' && `椭圆第一定义验证：|PF₁| + |PF₂| = 2a`}
-              {conic.conicType === 'hyperbola' && `双曲线第一定义验证：||PF₁| - |PF₂|| = 2a`}
+              {conic.conicType === 'parabola' && t.proofParabola}
+              {conic.conicType === 'ellipse' && t.proofEllipse}
+              {conic.conicType === 'hyperbola' && t.proofHyperbola}
             </div>
             <div className="text-slate-600 flex items-center gap-2 font-mono text-xs">
               {conic.conicType === 'parabola' && (
@@ -958,21 +1164,21 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
                   <span>|PF| = <strong className="text-emerald-700 font-bold">{pointPData.dist1.toFixed(3)}</strong></span>
                   <span>=</span>
                   <span>|PD| = <strong className="text-emerald-700 font-bold">{pointPData.dist2?.toFixed(3)}</strong></span>
-                  <span className="text-emerald-600 font-sans font-bold">✓ 恒成立</span>
+                  <span className="text-emerald-600 font-sans font-bold">{t.alwaysHolds}</span>
                 </>
               )}
               {conic.conicType === 'ellipse' && (
                 <>
                   <span>d₁ + d₂ = <strong className="text-emerald-700 font-bold">{(pointPData.sum || 0).toFixed(3)}</strong></span>
                   <span>= 2a = <strong className="text-emerald-700 font-bold">{((conic.parameters.a || 0) * 2).toFixed(3)}</strong></span>
-                  <span className="text-emerald-600 font-sans font-bold">✓ 恒等于长轴长</span>
+                  <span className="text-emerald-600 font-sans font-bold">{t.equalsMajor}</span>
                 </>
               )}
               {conic.conicType === 'hyperbola' && (
                 <>
                   <span>|d₁ - d₂| = <strong className="text-emerald-700 font-bold">{(pointPData.diff || 0).toFixed(3)}</strong></span>
                   <span>= 2a = <strong className="text-emerald-700 font-bold">{((conic.parameters.a || 0) * 2).toFixed(3)}</strong></span>
-                  <span className="text-emerald-600 font-sans font-bold">✓ 恒等于实轴长</span>
+                  <span className="text-emerald-600 font-sans font-bold">{t.equalsTransverse}</span>
                 </>
               )}
             </div>
@@ -987,7 +1193,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
               {parabolaDetails.direction === 'left' && <ArrowLeft className="w-3.5 h-3.5" />}
               {parabolaDetails.direction === 'up' && <ArrowUp className="w-3.5 h-3.5" />}
               {parabolaDetails.direction === 'down' && <ArrowDown className="w-3.5 h-3.5" />}
-              <span>{lang === 'zh' ? '开口方向' : 'Opens'}: {parabolaDetails.direction.toUpperCase()}</span>
+              <span>{t.opens}: {parabolaDetails.direction.toUpperCase()}</span>
             </span>
             <span className="text-slate-300">|</span>
             <span className="text-purple-700">p = {parabolaDetails.p.toFixed(2).replace(/\.00$/, '')}</span>
@@ -1001,7 +1207,7 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
       {layers.proof && (
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center gap-3 text-xs sm:text-sm print-hide">
           <span className="text-slate-600 font-medium whitespace-nowrap">
-            {lang === 'zh' ? '动点 P 轨迹调节（亦可在图上直接拖动点 P）：' : 'Adjust Point P (or drag point P on canvas):'}
+            {t.dragPointNotice}
           </span>
           <input
             type="range"
@@ -1023,31 +1229,31 @@ export const ParabolaCanvas: React.FC<ParabolaCanvasProps> = ({ conic, lang }) =
         <div className="flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '焦点 F' : 'Focus F'}</span>
+            <span className="font-bold text-slate-800">{t.focusLabel}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-4 h-0.5 border-t-2 border-dashed border-rose-600 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '准线 l' : 'Directrix l'}</span>
+            <span className="font-bold text-slate-800">{t.directrixLabel}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-slate-900 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '顶点 V' : 'Vertex V'}</span>
+            <span className="font-bold text-slate-800">{t.vertexLabel}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-4 h-0.5 bg-amber-500 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '通径 2p' : 'Latus 2p'}</span>
+            <span className="font-bold text-slate-800">{t.latusLabel}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-4 h-0.5 bg-indigo-600 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '半距 p/2' : 'Distance p/2'}</span>
+            <span className="font-bold text-slate-800">{t.focalDist}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="w-4 h-0.5 bg-emerald-500 inline-block"></span>
-            <span className="font-bold text-slate-800">{lang === 'zh' ? '定义验证线' : 'Proof Lines'}</span>
+            <span className="font-bold text-slate-800">{t.layerProof}</span>
           </span>
         </div>
         <div className="text-slate-400">
-          {lang === 'zh' ? '符合高中教材规范图示' : 'Standard Textbook Coordinate Graph'}
+          {t.textbookNotice}
         </div>
       </div>
     </div>

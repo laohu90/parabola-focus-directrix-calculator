@@ -3,6 +3,8 @@ import {
   formatFractionLaTeX,
   formatShiftTerm,
   formatSignedTermLaTeX,
+  formatExactSqrtLaTeX,
+  formatOffsetRadicalLaTeX,
   toFraction
 } from './fraction.ts';
 import { ConicAnalysisResult, StepExplanation, ParabolaOrientation, OpenDirection } from './conicTypes.ts';
@@ -43,7 +45,7 @@ export function solveParabola(
 
   // Step 1: 原方程分析与各项系数定位
   steps.push({
-    title: lang === 'zh' ? '第一步：分析方程类型与提取各项系数' : 'Step 1: Analyze Equation & Extract Coefficients',
+    title: lang === 'zh' ? '分析方程类型与提取各项系数' : 'Analyze Equation & Extract Coefficients',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '原一般方程' : 'Original Equation'}} &: ${origEq} \\\\[4pt]
       \\text{${lang === 'zh' ? '二次变量' : 'Quadratic Variable'}} &: ${quadVar} \\quad (\\text{${lang === 'zh' ? '系数' : 'Coeff'}} A = ${formatFractionLaTeX(A)}) \\\\[4pt]
@@ -72,7 +74,7 @@ export function solveParabola(
   const step2Rhs = `${formatSignedTermLaTeX(rhsLinCoeff, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsConst)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第二步：移项分拣（变量隔离与跨等号变号）' : 'Step 2: Isolate Squared Variable on Left-Hand Side',
+    title: lang === 'zh' ? '移项分拣（变量隔离与跨等号变号）' : 'Isolate Squared Variable on Left-Hand Side',
     math: `${step2Lhs} = ${step2Rhs}`,
     note: lang === 'zh'
       ? `遵循“主变量留左、次变量移右”原则：把含二次变量 $${quadVar}$ 的项保留在等号左侧；将含有一次变量 $${linVar}$ 的项与常数项移到右侧，注意符号反转（$+(${formatFractionLaTeX(C)})$ 变为 $${formatFractionLaTeX(rhsLinCoeff)}$，$+(${formatFractionLaTeX(D)})$ 变为 $${formatFractionLaTeX(rhsConst)}$）。`
@@ -92,7 +94,7 @@ export function solveParabola(
 
   if (Math.abs(A - 1) > 1e-7) {
     steps.push({
-      title: lang === 'zh' ? '第三步：两边同除以二次项系数 A（首项系数归一）' : 'Step 3: Divide by Leading Coefficient A',
+      title: lang === 'zh' ? '两边同除以二次项系数 A（首项系数归一）' : 'Divide by Leading Coefficient A',
       math: `\\begin{aligned}
         \\frac{${step2Lhs}}{${formatFractionLaTeX(A)}} &= \\frac{${step2Rhs}}{${formatFractionLaTeX(A)}} \\\\[6pt]
         \\implies ${step3Math}
@@ -106,7 +108,7 @@ export function solveParabola(
     });
   }
 
-  // Step 4: 配方法核心拆解（拆解三部曲：一次项系数、除以2、平方）
+  // Step 4: 配方法核心拆解
   const halfB = bOverA / 2;
   const addConst = halfB * halfB;
 
@@ -114,7 +116,7 @@ export function solveParabola(
   let step4Rhs = `${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(dOverA)} + \\mathbf{${formatFractionLaTeX(addConst)}}`;
 
   steps.push({
-    title: lang === 'zh' ? '第四步：配方法核心拆解（计算配方常数并在两边同时加上）' : 'Step 4: Compute Completing-the-Square Constant & Add to Both Sides',
+    title: lang === 'zh' ? '配方法核心拆解（计算配方常数并在两边同时加上）' : 'Compute Completing-the-Square Constant & Add to Both Sides',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '左侧一次项系数' : 'Linear Coeff'}} \\ b' &= ${formatFractionLaTeX(bOverA)} \\\\[4pt]
       \\text{${lang === 'zh' ? '取其一半' : 'Half of Coeff'}} \\ \\frac{b'}{2} &= \\frac{${formatFractionLaTeX(bOverA)}}{2} = ${formatFractionLaTeX(halfB)} \\\\[4pt]
@@ -136,7 +138,7 @@ export function solveParabola(
   let step5Math = `\\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2 = ${formatSignedTermLaTeX(cOverA, linVar).trim() || '0'}${formatSignedTermLaTeX(rhsCombinedConst)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第五步：左边逆向收拢为完全平方式，右边通分合并常数' : 'Step 5: Factor Left Side into Perfect Square & Combine Constants',
+    title: lang === 'zh' ? '左边逆向收拢为完全平方式，右边通分合并常数' : 'Factor Left Side into Perfect Square & Combine Constants',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '左侧因式分解' : 'Left Factorization'}} &: ${quadVar}^2 ${formatSignedTermLaTeX(bOverA, quadVar)} + ${formatFractionLaTeX(addConst)} = \\left(${quadVar} ${formatSignedTermLaTeX(-quadShift)}\\right)^2 \\\\[6pt]
       \\text{${lang === 'zh' ? '右侧常数合并' : 'Right Simplification'}} &: ${formatFractionLaTeX(dOverA)} + ${formatFractionLaTeX(addConst)} = ${formatFractionLaTeX(rhsCombinedConst)} \\\\[6pt]
@@ -159,7 +161,7 @@ export function solveParabola(
   else step6Math += `${formatFractionLaTeX(cOverA)} ${formatShiftTerm(linVar, linShift)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第六步：提取右侧一次项系数，化为标准顶点方程' : 'Step 6: Factor Out Linear Coefficient to Form Standard Form',
+    title: lang === 'zh' ? '提取右侧一次项系数，化为标准顶点方程' : 'Factor Out Linear Coefficient to Form Standard Form',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '提取公因式' : 'Factor out'}} \\ ${formatFractionLaTeX(cOverA)} &: ${formatSignedTermLaTeX(cOverA, linVar).trim()} ${formatSignedTermLaTeX(rhsCombinedConst)} = ${formatFractionLaTeX(cOverA)}\\left(${linVar} - \\left(\\frac{-${formatFractionLaTeX(rhsCombinedConst)}}{${formatFractionLaTeX(cOverA)}}\\right)\\right) \\\\[6pt]
       \\implies ${step6Math}
@@ -195,21 +197,21 @@ export function solveParabola(
   const dirEn = direction === 'right' ? 'Right (+x)' : direction === 'left' ? 'Left (-x)' : direction === 'up' ? 'Up (+y)' : 'Down (-y)';
 
   steps.push({
-    title: lang === 'zh' ? '第七步：与标准方程对照，提取顶点与焦参数' : 'Step 7: Compare with Standard Form & Extract Parameters',
+    title: lang === 'zh' ? '与标准方程对照，提取顶点与焦参数' : 'Compare with Standard Form & Extract Parameters',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '标准模板' : 'Standard Template'}} &: (${quadVar} - k)^2 = \\pm 2p(${linVar} - h) \\\\[4pt]
       \\text{${lang === 'zh' ? '顶点坐标' : 'Vertex Coordinates'}} &: V(h, k) = \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)}\\right) \\\\[4pt]
-      \\text{${lang === 'zh' ? '通径长' : 'Latus Rectum'}} \\ 2p &= |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\\\[4pt]
-      \\text{${lang === 'zh' ? '焦参数' : 'Focal Parameter'}} \\ p &= \\frac{2p}{2} = \\frac{${formatFractionLaTeX(twoP)}}{2} = ${formatFractionLaTeX(p)} \\\\[4pt]
-      \\text{${lang === 'zh' ? '半距（顶点至焦点/准线）' : 'Half-Distance (p/2)'}} \\ \\frac{p}{2} &= \\frac{${formatFractionLaTeX(p)}}{2} = ${formatFractionLaTeX(halfP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '通径长（2p / 美式 4p）' : 'Latus Rectum (2p / US 4p)'}} \\ 2p &= |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '焦参数 p（焦点至准线全距）' : 'Focal Parameter p'}} \\ p &= \\frac{2p}{2} = ${formatFractionLaTeX(p)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '顶点至焦点距离（p/2 / 美式 p_US）' : 'Vertex-to-Focus Distance (p/2)'}} \\ \\frac{p}{2} &= \\frac{${formatFractionLaTeX(p)}}{2} = ${formatFractionLaTeX(halfP)} \\\\[4pt]
       \\text{${lang === 'zh' ? '开口方向' : 'Opening Direction'}} &: \\mathbf{${lang === 'zh' ? dirCn : dirEn}}
     \\end{aligned}`,
     note: lang === 'zh'
-      ? `通径长即一次项系数的绝对值 $2p = ${formatFractionLaTeX(twoP)}$；由此解得焦参数 $p = ${formatFractionLaTeX(p)}$。顶点到焦点与准线的距离各为半步 $\\frac{p}{2} = ${formatFractionLaTeX(halfP)}$。`
-      : `Latus rectum $2p = ${formatFractionLaTeX(twoP)}$, parameter $p = ${formatFractionLaTeX(p)}$, and focal distance $p/2 = ${formatFractionLaTeX(halfP)}$.`,
+      ? `【教材写法对照说明】国内教材习惯写为 $(y-k)^2 = 2p(x-h)$，此时通径长 $2p = ${formatFractionLaTeX(twoP)}$，顶点到焦点距离为 $p/2 = ${formatFractionLaTeX(halfP)}$；美式教材习惯写为 $(y-k)^2 = 4p_{\\text{US}}(x-h)$，此时 $4p_{\\text{US}} = ${formatFractionLaTeX(twoP)}$，顶点到焦点距离记为 $p_{\\text{US}} = ${formatFractionLaTeX(halfP)}$。两种写法几何距离完全一致！`
+      : `Latus rectum $2p = ${formatFractionLaTeX(twoP)}$ (US convention $4p_{\\text{US}} = ${formatFractionLaTeX(twoP)}$). Distance from vertex to focus is $p/2 = ${formatFractionLaTeX(halfP)}$ (US convention $p_{\\text{US}} = ${formatFractionLaTeX(halfP)}$).`,
     whyExplanation: lang === 'zh'
       ? '【避坑警示：参数 p 与 p/2 的区别】解析几何考试中超过 40% 的错解是因为将焦参数 $p$ 误当作顶点到焦点的距离！请牢记口诀：“各距半步，相隔整步”——焦点到准线整距为 $p$，而顶点正居其中，到两边各为 $p/2$！'
-      : '[Critical Exam Trap: p vs p/2] The parameter p is the distance between Focus and Directrix. The distance from vertex to focus is strictly half: p/2.'
+      : '[Critical Exam Trap: p vs p/2] The parameter p is the total distance between Focus and Directrix. The distance from vertex to focus is strictly half: p/2.'
   });
 
   let focusX = h, focusY = k, directrixVal = 0, directrixType: 'x' | 'y' = 'x', axisVal = 0, axisType: 'x' | 'y' = 'y';
@@ -254,7 +256,7 @@ export function solveParabola(
 
   // Step 8: 焦点坐标与准线方程严格计算
   steps.push({
-    title: lang === 'zh' ? '第八步：确定焦点坐标、准线方程与通径端点' : 'Step 8: Compute Focus, Directrix & Latus Endpoints',
+    title: lang === 'zh' ? '确定焦点坐标、准线方程与通径端点' : 'Compute Focus, Directrix & Latus Endpoints',
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '焦点' : 'Focus'}} \\ F &: \\left(${formatFractionLaTeX(focusX)},\\ ${formatFractionLaTeX(focusY)}\\right) \\\\[4pt]
       \\text{${lang === 'zh' ? '准线方程' : 'Directrix'}} \\ l &: ${directrixLatex} \\\\[4pt]
@@ -322,7 +324,7 @@ export function solveEllipse(
   origEq += ' = 0';
 
   steps.push({
-    title: lang === 'zh' ? '第一步：分析方程结构与椭圆判别' : 'Step 1: Check Conic Discriminant for Ellipse',
+    title: lang === 'zh' ? '分析方程结构与椭圆判别' : 'Check Conic Discriminant for Ellipse',
     math: origEq,
     note: lang === 'zh'
       ? `二次项系数 $A = ${formatFractionLaTeX(A)}, B = ${formatFractionLaTeX(B)}$ 均大于 0 且同号。根据圆锥曲线判别法则，此方程为椭圆的一般方程。`
@@ -341,7 +343,7 @@ export function solveEllipse(
   step2Math += `${formatFractionLaTeX(B)}\\left(y^2 ${formatSignedTermLaTeX(dOverB, 'y')}\\right) = ${formatFractionLaTeX(rhs1)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第二步：分组提取二次项系数' : 'Step 2: Group Terms & Factor Out Leading Coefficients',
+    title: lang === 'zh' ? '分组提取二次项系数' : 'Group Terms & Factor Out Leading Coefficients',
     math: step2Math,
     note: lang === 'zh'
       ? `将含 $x$ 的项提取公因数 $A = ${formatFractionLaTeX(A)}$，含 $y$ 的项提取公因数 $B = ${formatFractionLaTeX(B)}$，常数项移到右边。`
@@ -365,7 +367,7 @@ export function solveEllipse(
   step3Math += `${formatFractionLaTeX(rhs1)} + ${formatFractionLaTeX(A)}\\times${formatFractionLaTeX(addX)} + ${formatFractionLaTeX(B)}\\times${formatFractionLaTeX(addY)} = ${formatFractionLaTeX(rhsTotal)}`;
 
   steps.push({
-    title: lang === 'zh' ? '第三步：双变量独立配方（核心避坑）' : 'Step 3: Complete Squares on Both Variables',
+    title: lang === 'zh' ? '双变量独立配方（核心避坑）' : 'Complete Squares on Both Variables',
     math: step3Math,
     note: lang === 'zh'
       ? `$x$ 括号内补上 $\\left(\\frac{${formatFractionLaTeX(cOverA)}}{2}\\right)^2 = ${formatFractionLaTeX(addX)}$；$y$ 括号内补上 $\\left(\\frac{${formatFractionLaTeX(dOverB)}}{2}\\right)^2 = ${formatFractionLaTeX(addY)}$。等式右边必须对应加上 $A \\times ${formatFractionLaTeX(addX)} + B \\times ${formatFractionLaTeX(addY)} = ${formatFractionLaTeX(addedRHS)}$！`
@@ -390,7 +392,7 @@ export function solveEllipse(
   let step5Math = `\\frac{${formatShiftTerm('x', h)}^2}{${formatFractionLaTeX(aSq)}} + \\frac{${formatShiftTerm('y', k)}^2}{${formatFractionLaTeX(bSq)}} = 1`;
 
   steps.push({
-    title: lang === 'zh' ? '第四步：收拢完全平方与两边同除以右端项' : 'Step 4: Contract Squares & Divide by RHS to Equate to 1',
+    title: lang === 'zh' ? '收拢完全平方与两边同除以右端项' : 'Contract Squares & Divide by RHS to Equate to 1',
     math: `${step4Math} \\\\[6pt] \\implies ${step5Math}`,
     note: lang === 'zh'
       ? `两边同时除以常数 $${formatFractionLaTeX(rhsTotal)}$，使方程右端严格等于 1，化为标准椭圆方程。`
@@ -427,37 +429,51 @@ export function solveEllipse(
   } else {
     f1Y = k - semiC;
     f2Y = k + semiC;
-    v1Y = k - semiB;
-    v2Y = k + semiB;
+    v1Y = k - semiA; // FIXED: semiA is major semi-axis
+    v2Y = k + semiA; // FIXED: semiA is major semi-axis
     directrixType = 'y';
     d1Val = k - (majorSq / semiC);
     d2Val = k + (majorSq / semiC);
   }
 
+  const cRadStr = formatExactSqrtLaTeX(cSq);
+  const f1Exact = isHorizMajor
+    ? `F_1\\left(${formatOffsetRadicalLaTeX(h, cSq, '-')},\\ ${formatFractionLaTeX(k)}\\right)`
+    : `F_1\\left(${formatFractionLaTeX(h)},\\ ${formatOffsetRadicalLaTeX(k, cSq, '-')}\\right)`;
+  const f2Exact = isHorizMajor
+    ? `F_2\\left(${formatOffsetRadicalLaTeX(h, cSq, '+')},\\ ${formatFractionLaTeX(k)}\\right)`
+    : `F_2\\left(${formatFractionLaTeX(h)},\\ ${formatOffsetRadicalLaTeX(k, cSq, '+')}\\right)`;
+  const fociFormulaMath = isHorizMajor
+    ? `(h \\pm c, k) = \\left(${formatFractionLaTeX(h)} \\pm ${cRadStr},\\ ${formatFractionLaTeX(k)}\\right)`
+    : `(h, k \\pm c) = \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)} \\pm ${cRadStr}\\right)`;
+
   const latusRectum = (2 * minorSq) / semiA;
 
   steps.push({
-    title: lang === 'zh' ? '第五步：解出几何核心量 a, b, c 与焦点坐标' : 'Step 5: Calculate Semi-Axes a, b, c and Foci',
+    title: lang === 'zh' ? '解出几何核心量 a, b, c 与焦点坐标' : 'Calculate Semi-Axes a, b, c and Foci',
     math: `\\begin{aligned}
-      a^2 &= ${formatFractionLaTeX(majorSq)} \\implies a = ${semiA.toFixed(3).replace(/\\.000$/, '')} \\\\[4pt]
-      b^2 &= ${formatFractionLaTeX(minorSq)} \\implies b = ${semiB.toFixed(3).replace(/\\.000$/, '')} \\\\[4pt]
-      c^2 &= a^2 - b^2 = ${formatFractionLaTeX(cSq)} \\implies c = ${semiC.toFixed(3).replace(/\\.000$/, '')} \\\\[6pt]
+      a^2 &= ${formatFractionLaTeX(majorSq)} \\implies a = ${semiA.toFixed(3).replace(/\.000$/, '')} \\\\[4pt]
+      b^2 &= ${formatFractionLaTeX(minorSq)} \\implies b = ${semiB.toFixed(3).replace(/\.000$/, '')} \\\\[4pt]
+      c^2 &= a^2 - b^2 = ${formatFractionLaTeX(cSq)} \\implies c = ${cRadStr} \\approx ${semiC.toFixed(3).replace(/\.000$/, '')} \\\\[6pt]
+      \\text{${lang === 'zh' ? '中心坐标' : 'Center'}} \\ O &: (h, k) = \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)}\\right) \\\\[4pt]
+      \\text{${lang === 'zh' ? '焦点公式' : 'Foci Formula'}} &: ${fociFormulaMath} \\\\[4pt]
+      \\implies & ${f1Exact}, \\quad ${f2Exact} \\\\[6pt]
       \\text{${lang === 'zh' ? '离心率' : 'Eccentricity'}} &: e = \\frac{c}{a} = ${ecc.toFixed(4)} < 1
     \\end{aligned}`,
     note: lang === 'zh'
-      ? `分母较大者对应长轴所在方向（${isHorizMajor ? '长轴平行于 x 轴' : '长轴平行于 y 轴'}）。焦点坐标在长轴两端对称分布。`
-      : `The larger denominator dictates the major axis (${isHorizMajor ? 'Horizontal' : 'Vertical'}).`,
+      ? `分母较大者对应长轴方向（${isHorizMajor ? '长轴平行于 x 轴' : '长轴平行于 y 轴'}）。焦点坐标在长轴上按 $(h \\pm c, k)$ 或 $(h, k \\pm c)$ 对称偏移。当 c 为无理数时，保留化简根式 $c = ${cRadStr}$。`
+      : `The larger denominator dictates the major axis (${isHorizMajor ? 'Horizontal' : 'Vertical'}). Foci shift symmetrically along the major axis by c = ${cRadStr}.`,
     whyExplanation: lang === 'zh'
-      ? '【椭圆焦点关系为什么是 a² - b²？】根据椭圆第一定义 $|PF_1| + |PF_2| = 2a$。当点取在短轴端点时，构筑直角三角形，斜边为 $a$，两直角边分别为 $b$ 与 $c$，因此严格满足勾股定理 $b^2 + c^2 = a^2 \\implies c^2 = a^2 - b^2$。'
-      : '[Why c² = a² - b² in an ellipse?] By definition, the sum of distances is 2a. At the co-vertex, the distances form right triangles with legs b and c and hypotenuse a, yielding b² + c² = a².'
+      ? '【中心偏移与焦点符号】中心在 $O(h, k)$ 时，焦点并不是简单加减 $c$，而是顺着长轴方向由中心偏移：长轴水平则焦点 $x$ 坐标为 $h \\pm c$，$y$ 坐标保持 $k$；长轴竖直则 $y$ 坐标为 $k \\pm c$，$x$ 坐标保持 $h$。'
+      : '[Center Offset & Focus Signs] From center (h, k), foci offset along the major axis: (h ± c, k) for horizontal major axis, and (h, k ± c) for vertical major axis.'
   });
 
   return {
     conicType: 'ellipse',
     centerOrVertex: { x: h, y: k, xFrac: toFraction(h), yFrac: toFraction(k), label: 'O' },
     foci: [
-      { x: f1X, y: f1Y, xFrac: toFraction(f1X), yFrac: toFraction(f1Y), label: 'F_1' },
-      { x: f2X, y: f2Y, xFrac: toFraction(f2X), yFrac: toFraction(f2Y), label: 'F_2' }
+      { x: f1X, y: f1Y, xFrac: toFraction(f1X), yFrac: toFraction(f1Y), label: 'F_1', latex: f1Exact },
+      { x: f2X, y: f2Y, xFrac: toFraction(f2X), yFrac: toFraction(f2Y), label: 'F_2', latex: f2Exact }
     ],
     vertices: [
       { x: v1X, y: v1Y, xFrac: toFraction(v1X), yFrac: toFraction(v1Y), label: 'A_1' },
@@ -522,7 +538,7 @@ export function solveHyperbola(
   origEq += ' = 0';
 
   steps.push({
-    title: lang === 'zh' ? '第一步：分析方程类型与双曲线判别' : 'Step 1: Check Hyperbola Discriminant',
+    title: lang === 'zh' ? '分析方程类型与双曲线判别' : 'Check Hyperbola Discriminant',
     math: origEq,
     note: lang === 'zh'
       ? `二次项系数 $A = ${formatFractionLaTeX(A)}, B = ${formatFractionLaTeX(B)}$ 异号（$A \\cdot B < 0$）。根据圆锥曲线定理，此方程为双曲线。`
@@ -549,7 +565,7 @@ export function solveHyperbola(
   }
 
   steps.push({
-    title: lang === 'zh' ? '第二步：配方与化为标准双曲线方程' : 'Step 2: Complete the Squares & Normalize RHS to 1',
+    title: lang === 'zh' ? '配方与化为标准双曲线方程' : 'Complete the Squares & Normalize RHS to 1',
     math: `${step3Math} \\\\[6pt] \\implies ${step4Math}`,
     note: lang === 'zh'
       ? `配方后两边除以 $${formatFractionLaTeX(rhsTotal)}$，正号项所在变量为实轴（${xIsTransverse ? '实轴沿 x 轴水平张开' : '实轴沿 y 轴竖直张开'}）。`
@@ -589,7 +605,7 @@ export function solveHyperbola(
     : `y ${formatSignedTermLaTeX(-k)} = -\\frac{${formatFractionLaTeX(semiA)}}{${formatFractionLaTeX(semiB)}}\\left(x ${formatSignedTermLaTeX(-h)}\\right)`;
 
   steps.push({
-    title: lang === 'zh' ? '第三步：求焦点、离心率与渐近线方程' : 'Step 3: Calculate Foci, Eccentricity & Asymptotes',
+    title: lang === 'zh' ? '求焦点、离心率与渐近线方程' : 'Calculate Foci, Eccentricity & Asymptotes',
     math: `\\begin{aligned}
       c^2 &= a^2 + b^2 = ${formatFractionLaTeX(cSq)} \\implies c = ${semiC.toFixed(3).replace(/\\.000$/, '')} \\\\[4pt]
       \\text{${lang === 'zh' ? '离心率' : 'Eccentricity'}} &: e = \\frac{c}{a} = ${ecc.toFixed(4)} > 1 \\\\[4pt]

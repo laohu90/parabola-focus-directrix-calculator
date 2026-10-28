@@ -22,9 +22,9 @@ export interface StepExplanation {
 export interface ConicAnalysisResult {
   conicType: ConicType;
   rawEquation?: string;
-  centerOrVertex: { x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string };
-  foci: Array<{ x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string }>;
-  vertices: Array<{ x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string }>;
+  centerOrVertex: { x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string; latex?: string };
+  foci: Array<{ x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string; latex?: string }>;
+  vertices: Array<{ x: number; y: number; xFrac: Fraction; yFrac: Fraction; label: string; latex?: string }>;
   directrices: Array<{ type: 'x' | 'y'; val: number; latex: string }>;
   axesOfSymmetry: Array<{ type: 'x' | 'y'; val: number; latex: string; label: string }>;
   asymptotes?: Array<{ latex: string }>;

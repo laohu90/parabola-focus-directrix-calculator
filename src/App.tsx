@@ -39,21 +39,30 @@ export default function App() {
     return 'en';
   });
 
-  // Default problem or from URL ?eq=...
-  const [currentResult, setCurrentResult] = useState<ConicAnalysisResult>(() => {
+  const [currentEqStr, setCurrentEqStr] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const urlEq = params.get('eq');
-      const urlLang = (params.get('lang') as Language) || 'en';
-      if (urlEq) {
-        try {
-          return parseUniversalConic(urlEq, urlLang);
-        } catch {
-          // fallback
-        }
-      }
+      if (urlEq) return urlEq;
     }
-    return solveParabola('horizontal', 1, -4, -8, 12, 'en');
+    return 'y^2 - 4y - 8x + 12 = 0';
+  });
+
+  // Default problem or from URL ?eq=...
+  const [currentResult, setCurrentResult] = useState<ConicAnalysisResult>(() => {
+    const initialLang = (() => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const urlLang = params.get('lang') as Language;
+        if (urlLang && ['en', 'es', 'fr', 'pt', 'zh'].includes(urlLang)) return urlLang;
+      }
+      return 'en';
+    })();
+    try {
+      return parseUniversalConic(currentEqStr, initialLang);
+    } catch {
+      return solveParabola('horizontal', 1, -4, -8, 12, initialLang);
+    }
   });
 
   // History and Bookmarks state
@@ -82,15 +91,18 @@ export default function App() {
     }
   }, [lang, t]);
 
-  // Re-run solver when language changes
+  // Force full recalculation and re-rendering of solution when language changes
   const handleLanguageChange = (newLang: Language) => {
     setLang(newLang);
-    if (currentResult.rawEquation) {
+    const eqToSolve = currentEqStr || currentResult.rawEquation || currentResult.standardLatex;
+    if (eqToSolve) {
       try {
-        const re = parseUniversalConic(currentResult.rawEquation, newLang);
+        const re = parseUniversalConic(eqToSolve, newLang);
         setCurrentResult(re);
-      } catch {
-        // fallback
+        setSolveError(null);
+      } catch (err: any) {
+        // If current string had an error, update error text in new language
+        setSolveError({ message: err.message, rawInput: eqToSolve });
       }
     }
   };
@@ -103,20 +115,22 @@ export default function App() {
   };
 
   const handleSolve = (result: ConicAnalysisResult, eqText?: string) => {
-    const finalResult = { ...result, rawEquation: eqText || result.standardLatex };
+    const finalEq = eqText || result.rawEquation || result.standardLatex;
+    setCurrentEqStr(finalEq);
+    const finalResult = { ...result, rawEquation: finalEq };
     setCurrentResult(finalResult);
     setSolveError(null); // Clear any previous error
 
     // Save to history
-    if (eqText) {
-      const updated = saveHistoryItem(eqText, result.conicType);
+    if (finalEq) {
+      const updated = saveHistoryItem(finalEq, result.conicType);
       setHistoryList(updated);
     }
 
     // Sync to URL
-    if (typeof window !== 'undefined' && eqText) {
+    if (typeof window !== 'undefined' && finalEq) {
       const url = new URL(window.location.href);
-      url.searchParams.set('eq', eqText);
+      url.searchParams.set('eq', finalEq);
       window.history.replaceState({}, '', url.toString());
     }
   };

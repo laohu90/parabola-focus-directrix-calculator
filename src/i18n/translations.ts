@@ -72,6 +72,7 @@ export interface TranslationDictionary {
   };
   canvas: {
     title: string;
+    subtitle: string;
     zoomIn: string;
     zoomOut: string;
     resetView: string;
@@ -81,8 +82,30 @@ export interface TranslationDictionary {
     definitionProofTitle: string;
     curveLabel: string;
     focusLabel: string;
+    vertexLabel: string;
     directrixLabel: string;
     latusLabel: string;
+    layerMenu: string;
+    layerMenuTitle: string;
+    layerConic: string;
+    layerFocusVertex: string;
+    layerDirectrix: string;
+    layerLatus: string;
+    layerDimensions: string;
+    layerGrid: string;
+    layerProof: string;
+    exportPng: string;
+    axisLabel: string;
+    latusLength: string;
+    opens: string;
+    focalDist: string;
+    textbookNotice: string;
+    proofParabola: string;
+    proofEllipse: string;
+    proofHyperbola: string;
+    alwaysHolds: string;
+    equalsMajor: string;
+    equalsTransverse: string;
   };
   guide: {
     title: string;
@@ -220,18 +243,41 @@ export const translations: Record<Language, TranslationDictionary> = {
       coreBadge: 'Core Exam Point'
     },
     canvas: {
-      title: 'Interactive Geometric Coordinate Board',
+      title: 'Geometric Coordinate Graph',
+      subtitle: 'Interactive Focus F, Directrix l, Vertex V, Latus Rectum & p/2 scale',
       zoomIn: 'Zoom In',
       zoomOut: 'Zoom Out',
       resetView: 'Reset View',
       toggleProof: 'Proof Point P: ',
       toggleLatus: 'Latus Rectum: ',
-      dragPointNotice: 'Move Point P along curve:',
+      dragPointNotice: 'Adjust Point P (or drag on canvas):',
       definitionProofTitle: 'Geometric Definition Proof: |PF| = d(P, Directrix)',
-      curveLabel: 'Parabola Curve',
+      curveLabel: 'Conic Curve',
       focusLabel: 'Focus F',
+      vertexLabel: 'Vertex V',
       directrixLabel: 'Directrix l',
-      latusLabel: 'Latus Rectum (2p)'
+      latusLabel: 'Latus Rectum (2p)',
+      layerMenu: 'Layers',
+      layerMenuTitle: 'Display Layers',
+      layerConic: 'Conic Curve',
+      layerFocusVertex: 'Focus F & Vertex V',
+      layerDirectrix: 'Directrix Line l',
+      layerLatus: 'Latus Rectum (2p)',
+      layerDimensions: 'Focal Scale (p/2)',
+      layerGrid: 'Grid & Ticks',
+      layerProof: 'Point P Proof Lines',
+      exportPng: 'Export PNG',
+      axisLabel: 'Axis',
+      latusLength: 'Latus Rectum 2p = ',
+      opens: 'Opens',
+      focalDist: 'Focal Dist',
+      textbookNotice: 'Standard Textbook Coordinate Graph',
+      proofParabola: 'Parabola 1st Def Proof: |PF| = d(P, l)',
+      proofEllipse: 'Ellipse 1st Def Proof: |PF₁| + |PF₂| = 2a',
+      proofHyperbola: 'Hyperbola 1st Def Proof: ||PF₁| - |PF₂|| = 2a',
+      alwaysHolds: '✓ Always Equal',
+      equalsMajor: '✓ Constant Major Axis 2a',
+      equalsTransverse: '✓ Constant Transverse Axis 2a'
     },
     guide: {
       title: 'Parabola Orientation Guide & Avoid Common Mistakes',
@@ -376,18 +422,41 @@ export const translations: Record<Language, TranslationDictionary> = {
       coreBadge: 'Punto Clave de Examen'
     },
     canvas: {
-      title: 'Pizarra Geométrica Interactiva',
+      title: 'Gráfico Geométrico en Coordenadas',
+      subtitle: 'Foco F, Directriz l, Vértice V, Lado Recto y escala p/2 interactivos',
       zoomIn: 'Acercar',
       zoomOut: 'Alejar',
       resetView: 'Restablecer',
       toggleProof: 'Punto de Prueba P: ',
       toggleLatus: 'Lado Recto: ',
-      dragPointNotice: 'Desliza el punto P sobre la curva:',
+      dragPointNotice: 'Ajustar punto P (o arrastrar en el gráfico):',
       definitionProofTitle: 'Demostración de Definición: |PF| = d(P, Directriz)',
-      curveLabel: 'Curva Parábola',
+      curveLabel: 'Curva Cónica',
       focusLabel: 'Foco F',
+      vertexLabel: 'Vértice V',
       directrixLabel: 'Directriz l',
-      latusLabel: 'Lado Recto (2p)'
+      latusLabel: 'Lado Recto (2p)',
+      layerMenu: 'Capas',
+      layerMenuTitle: 'Capas de Visualización',
+      layerConic: 'Curva Cónica',
+      layerFocusVertex: 'Foco F y Vértice V',
+      layerDirectrix: 'Línea Directriz l',
+      layerLatus: 'Lado Recto (2p)',
+      layerDimensions: 'Escala Focal (p/2)',
+      layerGrid: 'Malla y Escalas',
+      layerProof: 'Líneas de Prueba P',
+      exportPng: 'Exportar PNG',
+      axisLabel: 'Eje',
+      latusLength: 'Lado Recto 2p = ',
+      opens: 'Apertura',
+      focalDist: 'Dist. Focal',
+      textbookNotice: 'Gráfico Estándar de Libro de Texto',
+      proofParabola: 'Demostración Parábola: |PF| = d(P, l)',
+      proofEllipse: 'Demostración Elipse: |PF₁| + |PF₂| = 2a',
+      proofHyperbola: 'Demostración Hipérbola: ||PF₁| - |PF₂|| = 2a',
+      alwaysHolds: '✓ Siempre Igual',
+      equalsMajor: '✓ Igual a Eje Mayor 2a',
+      equalsTransverse: '✓ Igual a Eje Real 2a'
     },
     guide: {
       title: 'Guía de Orientación y Errores Típicos en Exámenes',
@@ -532,18 +601,41 @@ export const translations: Record<Language, TranslationDictionary> = {
       coreBadge: 'Point Fondamental'
     },
     canvas: {
-      title: 'Tableau Géométrique Interactif',
+      title: 'Graphique Géométrique Interactif',
+      subtitle: 'Foyer F, Directrice l, Sommet V, Corde Focale & échelle p/2',
       zoomIn: 'Zoomer',
       zoomOut: 'Dézoomer',
       resetView: 'Réinitialiser',
       toggleProof: 'Point Témoin P : ',
       toggleLatus: 'Corde Focale : ',
-      dragPointNotice: 'Déplacez le point P sur la courbe :',
+      dragPointNotice: 'Ajuster point P (ou faire glisser sur le graphe) :',
       definitionProofTitle: 'Preuve par Définition : |PF| = d(P, Directrice)',
-      curveLabel: 'Courbe Parabole',
+      curveLabel: 'Courbe Conique',
       focusLabel: 'Foyer F',
+      vertexLabel: 'Sommet V',
       directrixLabel: 'Directrice l',
-      latusLabel: 'Corde Focale (2p)'
+      latusLabel: 'Corde Focale (2p)',
+      layerMenu: 'Calques',
+      layerMenuTitle: 'Affichage des Calques',
+      layerConic: 'Courbe Conique',
+      layerFocusVertex: 'Foyer F & Sommet V',
+      layerDirectrix: 'Droite Directrice l',
+      layerLatus: 'Corde Focale (2p)',
+      layerDimensions: 'Échelle Focale (p/2)',
+      layerGrid: 'Grille & Repères',
+      layerProof: 'Lignes de Preuve P',
+      exportPng: 'Exporter PNG',
+      axisLabel: 'Axe',
+      latusLength: 'Corde Focale 2p = ',
+      opens: 'Ouverture',
+      focalDist: 'Dist. Focale',
+      textbookNotice: 'Graphique Conforme aux Manuels',
+      proofParabola: 'Preuve Parabole : |PF| = d(P, l)',
+      proofEllipse: 'Preuve Ellipse : |PF₁| + |PF₂| = 2a',
+      proofHyperbola: 'Preuve Hyperbole : ||PF₁| - |PF₂|| = 2a',
+      alwaysHolds: '✓ Toujours Égal',
+      equalsMajor: '✓ Constante Grand Axe 2a',
+      equalsTransverse: '✓ Constante Axe Transverse 2a'
     },
     guide: {
       title: 'Guide d\'Orientation & Erreurs Fréquentes aux Examens',
@@ -688,18 +780,41 @@ export const translations: Record<Language, TranslationDictionary> = {
       coreBadge: 'Ponto Crucial'
     },
     canvas: {
-      title: 'Quadro Geométrico Interativo',
+      title: 'Gráfico Geométrico Interativo',
+      subtitle: 'Foco F, Diretriz l, Vértice V, Latus Rectum e escala p/2',
       zoomIn: 'Aproximar',
       zoomOut: 'Afastar',
       resetView: 'Restaurar',
       toggleProof: 'Ponto de Teste P: ',
       toggleLatus: 'Latus Rectum: ',
-      dragPointNotice: 'Arraste o ponto P sobre a curva:',
+      dragPointNotice: 'Ajustar ponto P (ou arraste no gráfico):',
       definitionProofTitle: 'Demonstração da Definição: |PF| = d(P, Diretriz)',
-      curveLabel: 'Curva da Parábola',
+      curveLabel: 'Curva Cônica',
       focusLabel: 'Foco F',
+      vertexLabel: 'Vértice V',
       directrixLabel: 'Diretriz l',
-      latusLabel: 'Latus Rectum (2p)'
+      latusLabel: 'Latus Rectum (2p)',
+      layerMenu: 'Camadas',
+      layerMenuTitle: 'Camadas de Exibição',
+      layerConic: 'Curva Cônica',
+      layerFocusVertex: 'Foco F e Vértice V',
+      layerDirectrix: 'Reta Diretriz l',
+      layerLatus: 'Latus Rectum (2p)',
+      layerDimensions: 'Escala Focal (p/2)',
+      layerGrid: 'Grade e Escala',
+      layerProof: 'Linhas de Teste P',
+      exportPng: 'Exportar PNG',
+      axisLabel: 'Eixo',
+      latusLength: 'Latus Rectum 2p = ',
+      opens: 'Abertura',
+      focalDist: 'Dist. Focal',
+      textbookNotice: 'Gráfico Padrão de Livro Didático',
+      proofParabola: 'Demonstração Parábola: |PF| = d(P, l)',
+      proofEllipse: 'Demonstração Elipse: |PF₁| + |PF₂| = 2a',
+      proofHyperbola: 'Demonstração Hipérbole: ||PF₁| - |PF₂|| = 2a',
+      alwaysHolds: '✓ Sempre Igual',
+      equalsMajor: '✓ Constante Eixo Maior 2a',
+      equalsTransverse: '✓ Constante Eixo Real 2a'
     },
     guide: {
       title: 'Guia de Orientação e Principais Pegadinhas de Prova',
@@ -844,18 +959,41 @@ export const translations: Record<Language, TranslationDictionary> = {
       coreBadge: '核心考点'
     },
     canvas: {
-      title: '解析几何画板 · 动态轨迹与定义验证',
+      title: '抛物线焦点与准线几何坐标图',
+      subtitle: '直观展示 焦点 F、准线 l、顶点 V、通径 2p 与半距 p/2 标尺',
       zoomIn: '放大',
       zoomOut: '缩小',
       resetView: '复位视口',
       toggleProof: '动点定义：',
       toggleLatus: '通径：',
-      dragPointNotice: '滑动动点 P 位置：',
+      dragPointNotice: '动点 P 轨迹调节（亦可在图上直接拖动点 P）：',
       definitionProofTitle: '抛物线第一定义验证：|PF| = d(P, 准线)',
-      curveLabel: '抛物线曲线',
+      curveLabel: '圆锥曲线',
       focusLabel: '焦点 F',
+      vertexLabel: '顶点 V',
       directrixLabel: '准线 l',
-      latusLabel: '通径长 (2p)'
+      latusLabel: '通径长 (2p)',
+      layerMenu: '图层开关',
+      layerMenuTitle: '图形图层开关',
+      layerConic: '曲线轨迹',
+      layerFocusVertex: '焦点 F 与顶点 V',
+      layerDirectrix: '准线方程 l',
+      layerLatus: '通径弦 (2p)',
+      layerDimensions: '半距标尺 (p/2)',
+      layerGrid: '坐标网格与刻度',
+      layerProof: '动点定义验证连线',
+      exportPng: '保存坐标图',
+      axisLabel: '对称轴',
+      latusLength: '通径长 2p = ',
+      opens: '开口方向',
+      focalDist: '焦距全距 p',
+      textbookNotice: '符合高中教材规范图示',
+      proofParabola: '抛物线第一定义验证：|PF| = d(P, 准线)',
+      proofEllipse: '椭圆第一定义验证：|PF₁| + |PF₂| = 2a',
+      proofHyperbola: '双曲线第一定义验证：||PF₁| - |PF₂|| = 2a',
+      alwaysHolds: '✓ 恒成立',
+      equalsMajor: '✓ 恒等于长轴长 2a',
+      equalsTransverse: '✓ 恒等于实轴长 2a'
     },
     guide: {
       title: '高二高频考点 · 开口方向与易错点避坑指南',
