@@ -283,7 +283,7 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
           <form onSubmit={handleSolveSmart} className="space-y-3">
             <div>
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <label className="text-sm font-medium text-slate-800">
+                <label htmlFor="smart-conic-input" className="text-sm font-medium text-slate-800">
                   {lang === 'zh'
                     ? '输入或粘贴方程（支持 Unicode 上标 y²、x² 与 LaTeX 语法）：'
                     : 'Enter or paste equation (supports Unicode y², x² and LaTeX):'}
@@ -316,7 +316,9 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="relative flex-1">
                   <input
+                    id="smart-conic-input"
                     type="text"
+                    aria-label={lang === 'zh' ? '圆锥曲线方程输入' : 'Conic Section Equation Input'}
                     value={naturalEq}
                     onChange={(e) => {
                       setNaturalEq(e.target.value);
@@ -408,20 +410,20 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">A (y²)</label>
-                <input type="text" value={paraA} onChange={(e) => setParaA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="para-a" className="block text-xs font-semibold text-slate-700 mb-1">A (y²)</label>
+                <input id="para-a" type="text" value={paraA} onChange={(e) => setParaA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y)</label>
-                <input type="text" value={paraB} onChange={(e) => setParaB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="para-b" className="block text-xs font-semibold text-slate-700 mb-1">B (y)</label>
+                <input id="para-b" type="text" value={paraB} onChange={(e) => setParaB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
-                <input type="text" value={paraC} onChange={(e) => setParaC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="para-c" className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input id="para-c" type="text" value={paraC} onChange={(e) => setParaC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">D (Const)</label>
-                <input type="text" value={paraD} onChange={(e) => setParaD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="para-d" className="block text-xs font-semibold text-slate-700 mb-1">D (Const)</label>
+                <input id="para-d" type="text" value={paraD} onChange={(e) => setParaD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
             </div>
             <div className="flex justify-end pt-2">
@@ -441,24 +443,24 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
-                <input type="text" value={elA} onChange={(e) => setElA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="ellipse-a" className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
+                <input id="ellipse-a" type="text" value={elA} onChange={(e) => setElA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
-                <input type="text" value={elB} onChange={(e) => setElB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="ellipse-b" className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
+                <input id="ellipse-b" type="text" value={elB} onChange={(e) => setElB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
-                <input type="text" value={elC} onChange={(e) => setElC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="ellipse-c" className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input id="ellipse-c" type="text" value={elC} onChange={(e) => setElC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
-                <input type="text" value={elD} onChange={(e) => setElD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="ellipse-d" className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
+                <input id="ellipse-d" type="text" value={elD} onChange={(e) => setElD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
-                <input type="text" value={elE} onChange={(e) => setElE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="ellipse-e" className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
+                <input id="ellipse-e" type="text" value={elE} onChange={(e) => setElE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
             </div>
             <div className="flex justify-end pt-2">
@@ -478,24 +480,24 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
-                <input type="text" value={hyA} onChange={(e) => setHyA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="hyperbola-a" className="block text-xs font-semibold text-slate-700 mb-1">A (x²)</label>
+                <input id="hyperbola-a" type="text" value={hyA} onChange={(e) => setHyA(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
-                <input type="text" value={hyB} onChange={(e) => setHyB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="hyperbola-b" className="block text-xs font-semibold text-slate-700 mb-1">B (y²)</label>
+                <input id="hyperbola-b" type="text" value={hyB} onChange={(e) => setHyB(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
-                <input type="text" value={hyC} onChange={(e) => setHyC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="hyperbola-c" className="block text-xs font-semibold text-slate-700 mb-1">C (x)</label>
+                <input id="hyperbola-c" type="text" value={hyC} onChange={(e) => setHyC(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
-                <input type="text" value={hyD} onChange={(e) => setHyD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="hyperbola-d" className="block text-xs font-semibold text-slate-700 mb-1">D (y)</label>
+                <input id="hyperbola-d" type="text" value={hyD} onChange={(e) => setHyD(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
-                <input type="text" value={hyE} onChange={(e) => setHyE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
+                <label htmlFor="hyperbola-e" className="block text-xs font-semibold text-slate-700 mb-1">E (Const)</label>
+                <input id="hyperbola-e" type="text" value={hyE} onChange={(e) => setHyE(e.target.value)} className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg font-mono" />
               </div>
             </div>
             <div className="flex justify-end pt-2">

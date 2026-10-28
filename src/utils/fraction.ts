@@ -19,8 +19,8 @@ export function gcd(a: number, b: number): number {
   return a || 1;
 }
 
-// Convert a number (possibly decimal) to an exact reduced fraction
-export function toFraction(val: number, tolerance = 1e-6): Fraction {
+// Convert a number (possibly decimal) to an exact reduced fraction (denominators <= 64)
+export function toFraction(val: number, tolerance = 1e-5): Fraction {
   if (Math.abs(val) < tolerance) {
     return { num: 0, den: 1 };
   }
@@ -42,22 +42,8 @@ export function toFraction(val: number, tolerance = 1e-6): Fraction {
     }
   }
 
-  // Fallback continued fraction approximation
-  let h1 = 1, h2 = 0, k1 = 0, k2 = 1;
-  let b = absVal;
-  do {
-    const a = Math.floor(b);
-    let aux = h1;
-    h1 = a * h1 + h2;
-    h2 = aux;
-    aux = k1;
-    k1 = a * k1 + k2;
-    k2 = aux;
-    b = 1 / (b - a);
-  } while (Math.abs(absVal - h1 / k1) > absVal * tolerance && k1 < 1000);
-
-  const g = gcd(h1, k1);
-  return { num: sign * (h1 / g), den: k1 / g };
+  // If no simple fraction with denominator <= 64 matches, return rounded clean value
+  return { num: sign * (Math.round(absVal * 1000) / 1000), den: 1 };
 }
 
 // Format a fraction into clean LaTeX string

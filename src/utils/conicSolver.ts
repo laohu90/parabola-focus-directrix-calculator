@@ -468,6 +468,18 @@ export function solveEllipse(
       : '[Center Offset & Focus Signs] From center (h, k), foci offset along the major axis: (h ± c, k) for horizontal major axis, and (h, k ± c) for vertical major axis.'
   });
 
+  const rxSq = isHorizMajor ? aSq : bSq;
+  const rySq = isHorizMajor ? bSq : aSq;
+  const dSq = (majorSq * majorSq) / cSq;
+
+  const domainLeftLatex = formatOffsetRadicalLaTeX(h, rxSq, '-');
+  const domainRightLatex = formatOffsetRadicalLaTeX(h, rxSq, '+');
+  const rangeBottomLatex = formatOffsetRadicalLaTeX(k, rySq, '-');
+  const rangeTopLatex = formatOffsetRadicalLaTeX(k, rySq, '+');
+
+  const d1Latex = formatOffsetRadicalLaTeX(isHorizMajor ? h : k, dSq, '-');
+  const d2Latex = formatOffsetRadicalLaTeX(isHorizMajor ? h : k, dSq, '+');
+
   return {
     conicType: 'ellipse',
     centerOrVertex: { x: h, y: k, xFrac: toFraction(h), yFrac: toFraction(k), label: 'O' },
@@ -480,8 +492,8 @@ export function solveEllipse(
       { x: v2X, y: v2Y, xFrac: toFraction(v2X), yFrac: toFraction(v2Y), label: 'A_2' }
     ],
     directrices: [
-      { type: directrixType, val: d1Val, latex: `${directrixType} = ${formatFractionLaTeX(d1Val)}` },
-      { type: directrixType, val: d2Val, latex: `${directrixType} = ${formatFractionLaTeX(d2Val)}` }
+      { type: directrixType, val: d1Val, latex: `${directrixType} = ${d1Latex}` },
+      { type: directrixType, val: d2Val, latex: `${directrixType} = ${d2Latex}` }
     ],
     axesOfSymmetry: [
       { type: 'y', val: k, latex: `y = ${formatFractionLaTeX(k)}`, label: lang === 'zh' ? '主对称轴' : 'Major Axis' },
@@ -491,8 +503,8 @@ export function solveEllipse(
     latusRectum: { val: latusRectum, latex: `\\frac{2b^2}{a} = ${formatFractionLaTeX(latusRectum)}` },
     standardLatex: step5Math,
     parameters: { a: semiA, b: semiB, c: semiC, orientation: isHorizMajor ? 'horizontal' : 'vertical' },
-    domainLatex: `[${formatFractionLaTeX(h - (isHorizMajor ? semiA : semiB))}, ${formatFractionLaTeX(h + (isHorizMajor ? semiA : semiB))}]`,
-    rangeLatex: `[${formatFractionLaTeX(k - (isHorizMajor ? semiB : semiA))}, ${formatFractionLaTeX(k + (isHorizMajor ? semiB : semiA))}]`,
+    domainLatex: `\\left[${domainLeftLatex},\\ ${domainRightLatex}\\right]`,
+    rangeLatex: `\\left[${rangeBottomLatex},\\ ${rangeTopLatex}\\right]`,
     steps
   };
 }
@@ -620,6 +632,15 @@ export function solveHyperbola(
   });
 
   const latusRectum = (2 * bSq) / semiA;
+  const dSq = (aSq * aSq) / cSq;
+
+  const d1HypLatex = formatOffsetRadicalLaTeX(xIsTransverse ? h : k, dSq, '-');
+  const d2HypLatex = formatOffsetRadicalLaTeX(xIsTransverse ? h : k, dSq, '+');
+
+  const aLeftLatex = formatOffsetRadicalLaTeX(h, aSq, '-');
+  const aRightLatex = formatOffsetRadicalLaTeX(h, aSq, '+');
+  const aBottomLatex = formatOffsetRadicalLaTeX(k, aSq, '-');
+  const aTopLatex = formatOffsetRadicalLaTeX(k, aSq, '+');
 
   return {
     conicType: 'hyperbola',
@@ -633,8 +654,8 @@ export function solveHyperbola(
       { x: v2X, y: v2Y, xFrac: toFraction(v2X), yFrac: toFraction(v2Y), label: 'A_2' }
     ],
     directrices: [
-      { type: xIsTransverse ? 'x' : 'y', val: (xIsTransverse ? h : k) - (aSq / semiC), latex: `${xIsTransverse ? 'x' : 'y'} = ${formatFractionLaTeX((xIsTransverse ? h : k) - (aSq / semiC))}` },
-      { type: xIsTransverse ? 'x' : 'y', val: (xIsTransverse ? h : k) + (aSq / semiC), latex: `${xIsTransverse ? 'x' : 'y'} = ${formatFractionLaTeX((xIsTransverse ? h : k) + (aSq / semiC))}` }
+      { type: xIsTransverse ? 'x' : 'y', val: (xIsTransverse ? h : k) - (aSq / semiC), latex: `${xIsTransverse ? 'x' : 'y'} = ${d1HypLatex}` },
+      { type: xIsTransverse ? 'x' : 'y', val: (xIsTransverse ? h : k) + (aSq / semiC), latex: `${xIsTransverse ? 'x' : 'y'} = ${d2HypLatex}` }
     ],
     axesOfSymmetry: [
       { type: 'y', val: k, latex: `y = ${formatFractionLaTeX(k)}`, label: lang === 'zh' ? '实轴' : 'Transverse Axis' },
@@ -645,8 +666,8 @@ export function solveHyperbola(
     latusRectum: { val: latusRectum, latex: `\\frac{2b^2}{a} = ${formatFractionLaTeX(latusRectum)}` },
     standardLatex: step4Math,
     parameters: { a: semiA, b: semiB, c: semiC, orientation: xIsTransverse ? 'horizontal' : 'vertical' },
-    domainLatex: xIsTransverse ? `(-\\infty, ${formatFractionLaTeX(h - semiA)}] \\cup [${formatFractionLaTeX(h + semiA)}, \\infty)` : '(-\\infty, \\infty)',
-    rangeLatex: xIsTransverse ? '(-\\infty, \\infty)' : `(-\\infty, ${formatFractionLaTeX(k - semiA)}] \\cup [${formatFractionLaTeX(k + semiA)}, \\infty)`,
+    domainLatex: xIsTransverse ? `(-\\infty,\\ ${aLeftLatex}] \\cup [${aRightLatex},\\ \\infty)` : '(-\\infty, \\infty)',
+    rangeLatex: xIsTransverse ? '(-\\infty, \\infty)' : `(-\\infty,\\ ${aBottomLatex}] \\cup [${aTopLatex},\\ \\infty)`,
     steps
   };
 }
