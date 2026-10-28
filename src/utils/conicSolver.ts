@@ -201,14 +201,14 @@ export function solveParabola(
     math: `\\begin{aligned}
       \\text{${lang === 'zh' ? '标准模板' : 'Standard Template'}} &: (${quadVar} - k)^2 = \\pm 2p(${linVar} - h) \\\\[4pt]
       \\text{${lang === 'zh' ? '顶点坐标' : 'Vertex Coordinates'}} &: V(h, k) = \\left(${formatFractionLaTeX(h)},\\ ${formatFractionLaTeX(k)}\\right) \\\\[4pt]
-      \\text{${lang === 'zh' ? '通径长（2p / 美式 4p）' : 'Latus Rectum (2p / US 4p)'}} \\ 2p &= |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '通径长（焦点弦 2p / 4p）' : 'Latus Rectum Length (2p / 4p)'}} \\ 2p &= |${formatFractionLaTeX(cOverA)}| = ${formatFractionLaTeX(twoP)} \\\\[4pt]
       \\text{${lang === 'zh' ? '焦参数 p（焦点至准线全距）' : 'Focal Parameter p'}} \\ p &= \\frac{2p}{2} = ${formatFractionLaTeX(p)} \\\\[4pt]
-      \\text{${lang === 'zh' ? '顶点至焦点距离（p/2 / 美式 p_US）' : 'Vertex-to-Focus Distance (p/2)'}} \\ \\frac{p}{2} &= \\frac{${formatFractionLaTeX(p)}}{2} = ${formatFractionLaTeX(halfP)} \\\\[4pt]
+      \\text{${lang === 'zh' ? '顶点至焦点距离 (p/2)' : 'Vertex-to-Focus Distance (p/2)'}} \\ \\frac{p}{2} &= \\frac{${formatFractionLaTeX(p)}}{2} = ${formatFractionLaTeX(halfP)} \\\\[4pt]
       \\text{${lang === 'zh' ? '开口方向' : 'Opening Direction'}} &: \\mathbf{${lang === 'zh' ? dirCn : dirEn}}
     \\end{aligned}`,
     note: lang === 'zh'
-      ? `【教材写法对照说明】国内教材习惯写为 $(y-k)^2 = 2p(x-h)$，此时通径长 $2p = ${formatFractionLaTeX(twoP)}$，顶点到焦点距离为 $p/2 = ${formatFractionLaTeX(halfP)}$；美式教材习惯写为 $(y-k)^2 = 4p_{\\text{US}}(x-h)$，此时 $4p_{\\text{US}} = ${formatFractionLaTeX(twoP)}$，顶点到焦点距离记为 $p_{\\text{US}} = ${formatFractionLaTeX(halfP)}$。两种写法几何距离完全一致！`
-      : `Latus rectum $2p = ${formatFractionLaTeX(twoP)}$ (US convention $4p_{\\text{US}} = ${formatFractionLaTeX(twoP)}$). Distance from vertex to focus is $p/2 = ${formatFractionLaTeX(halfP)}$ (US convention $p_{\\text{US}} = ${formatFractionLaTeX(halfP)}$).`,
+      ? `【通径长与焦距说明】在标准方程 $(y-k)^2 = 2p(x-h)$ [或 $4p(x-h)$] 中，通径长（焦点弦）等于二次项绝对方程系数 $2p = ${formatFractionLaTeX(twoP)}$，顶点到焦点与准线的对称距离为 $p/2 = ${formatFractionLaTeX(halfP)}$。`
+      : `Latus rectum length is $2p = ${formatFractionLaTeX(twoP)}$ (or $4p = ${formatFractionLaTeX(twoP)}$). Distance from vertex to focus is $p/2 = ${formatFractionLaTeX(halfP)}$.`,
     whyExplanation: lang === 'zh'
       ? '【避坑警示：参数 p 与 p/2 的区别】解析几何考试中超过 40% 的错解是因为将焦参数 $p$ 误当作顶点到焦点的距离！请牢记口诀：“各距半步，相隔整步”——焦点到准线整距为 $p$，而顶点正居其中，到两边各为 $p/2$！'
       : '[Critical Exam Trap: p vs p/2] The parameter p is the total distance between Focus and Directrix. The distance from vertex to focus is strictly half: p/2.'
@@ -468,8 +468,8 @@ export function solveEllipse(
       : '[Center Offset & Focus Signs] From center (h, k), foci offset along the major axis: (h ± c, k) for horizontal major axis, and (h, k ± c) for vertical major axis.'
   });
 
-  const rxSq = isHorizMajor ? aSq : bSq;
-  const rySq = isHorizMajor ? bSq : aSq;
+  const rxSq = aSq;
+  const rySq = bSq;
   const dSq = (majorSq * majorSq) / cSq;
 
   const domainLeftLatex = formatOffsetRadicalLaTeX(h, rxSq, '-');

@@ -209,6 +209,16 @@ export const ParabolaInput: React.FC<ParabolaInputProps> = ({
       latex: '4x^2 + 9y^2 - 16x + 18y - 11 = 0'
     },
     {
+      badge: lang === 'zh' ? '椭圆(竖直长轴 B>A)' : 'Ellipse (Vertical Major)',
+      rawEq: 'x^2/4 + y^2/9 = 1',
+      latex: '\\frac{x^2}{4} + \\frac{y^2}{9} = 1'
+    },
+    {
+      badge: lang === 'zh' ? '椭圆(4x²+3y²=12)' : 'Ellipse (4x²+3y²=12)',
+      rawEq: '4x^2 + 3y^2 = 12',
+      latex: '4x^2 + 3y^2 = 12'
+    },
+    {
       badge: lang === 'zh' ? '双曲线标准式' : 'Hyperbola Frac',
       rawEq: 'x^2/16 - y^2/9 = 1',
       latex: '\\frac{x^2}{16} - \\frac{y^2}{9} = 1'

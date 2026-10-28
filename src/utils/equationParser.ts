@@ -33,6 +33,70 @@ export function normalizeMathString(raw: string): string {
 }
 
 /**
+ * Expands binomial squares (x - h)^2 or (x - h)*(x - h) -> x^2 - 2hx + h^2
+ * and expands distribution over linear factors like 8(y + 1) -> 8y + 8.
+ */
+export function expandAlgebraicParentheses(input: string): string {
+  let s = input;
+
+  // 1. Replace (x-h)*(x-h) or (x-h)(x-h) with (x-h)^2
+  s = s.replace(/\(([^)]+)\)\s*\*?\s*\(\1\)/g, '($1)^2');
+
+  // 2. Expand (a*x + b)^2 or (a*y + b)^2
+  const squarePattern = /\(([-+]?[\d./]*)\s*([xyXY])\s*([+-]\s*[\d./]+)\)\^2/gi;
+  s = s.replace(squarePattern, (_, aStr, variable, bStr) => {
+    let a = 1;
+    const aTrim = (aStr || '').replace(/\s+/g, '');
+    if (aTrim === '-') a = -1;
+    else if (aTrim === '+' || aTrim === '') a = 1;
+    else if (aTrim.includes('/')) {
+      const [n, d] = aTrim.split('/');
+      a = parseFloat(n) / parseFloat(d);
+    } else {
+      a = parseFloat(aTrim);
+    }
+
+    let b = 0;
+    const bTrim = (bStr || '').replace(/\s+/g, '');
+    if (bTrim.includes('/')) {
+      const [n, d] = bTrim.split('/');
+      b = parseFloat(n) / parseFloat(d);
+    } else {
+      b = parseFloat(bTrim);
+    }
+
+    if (isNaN(a)) a = 1;
+    if (isNaN(b)) b = 0;
+
+    const coeff2 = a * a;
+    const coeff1 = 2 * a * b;
+    const constTerm = b * b;
+
+    const sign1 = coeff1 >= 0 ? '+' : '-';
+    const absCoeff1 = Math.abs(coeff1);
+    const sign2 = constTerm >= 0 ? '+' : '-';
+    const absConst = Math.abs(constTerm);
+
+    return `(${coeff2}${variable}^2 ${sign1} ${absCoeff1}${variable} ${sign2} ${absConst})`;
+  });
+
+  // 3. Expand outer distribution: e.g. 8(y + 1) -> (8y + 8) or -4(x - 2) -> (-4x + 8)
+  const distPattern = /([+-]?\s*[\d.]+)\s*\*?\s*\(\s*([xyXY])\s*([+-]\s*[\d.]+)\s*\)/gi;
+  s = s.replace(distPattern, (_, multStr, variable, bStr) => {
+    const mult = parseFloat(multStr.replace(/\s+/g, ''));
+    const b = parseFloat(bStr.replace(/\s+/g, ''));
+    if (isNaN(mult) || isNaN(b)) return _;
+    const coeffVar = mult;
+    const constTerm = mult * b;
+    const signVar = coeffVar >= 0 ? '+' : '-';
+    const signConst = constTerm >= 0 ? '+' : '-';
+    return `(${signVar}${Math.abs(coeffVar)}${variable} ${signConst} ${Math.abs(constTerm)})`;
+  });
+
+  return s;
+}
+
+/**
  * Universal Conic Section Parser:
  * Strictly validates equations and gives accurate educational error messages
  * for non-conic, linear, higher-degree, or non-math strings (e.g. 'abc', 'x + y = 1').
@@ -49,6 +113,16 @@ export function parseUniversalConic(
   // 1. Detect unknown non-mathematical text like 'abc', 'test', 'hello'
   // Allowed letters in conic formulas: x, y, X, Y
   const clean = normalizeMathString(trimmed);
+
+  // 2. Detect rotated conic section with xy cross term (e.g. xy = 1, x^2 + 2xy + y^2 = 4)
+  if (/x\s*\*?\s*y|y\s*\*?\s*x/i.test(clean)) {
+    throw new Error(
+      lang === 'zh'
+        ? `检测到含有 xy 交叉项（如 "${trimmed}"）的斜置/旋转圆锥曲线！此类曲线需要使用坐标轴旋转矩阵（旋转角 θ = ½ arccot((A-C)/B)）化简，超出了平移配方法（Completing the Square）解题范畴。暂不支持旋转圆锥曲线。`
+        : `Rotated conic sections with xy cross-terms (e.g., "${trimmed}") require a coordinate axis rotation matrix (theta = 0.5 * arccot((A-C)/B)), which is beyond completing the square. Rotated conic mode is currently unsupported.`
+    );
+  }
+
   const nonMathTokens = clean.replace(/\\?[a-zA-Z]+/g, (match) => {
     const lower = match.toLowerCase();
     // Allow variable names x, y
@@ -66,7 +140,7 @@ export function parseUniversalConic(
     );
   }
 
-  // 2. Must contain at least one variable x or y
+  // 3. Must contain at least one variable x or y
   if (!/[xy]/i.test(clean)) {
     throw new Error(
       lang === 'zh'
@@ -75,7 +149,7 @@ export function parseUniversalConic(
     );
   }
 
-  // 3. Detect higher degree terms (e.g. x^3, y^4)
+  // 4. Detect higher degree terms (e.g. x^3, y^4)
   if (/[xy]\^[3-9]/i.test(clean) || /[xy]\^\d{2,}/i.test(clean)) {
     throw new Error(
       lang === 'zh'
@@ -84,8 +158,8 @@ export function parseUniversalConic(
     );
   }
 
-  // 4. Detect linear equations without any squared terms (e.g. 'x + y = 1', '2x - 3y + 5 = 0', 'y = 2x')
-  const hasSquaredPattern = /[xy]\^2/i.test(clean) || /\([xy][+-]?[\d./]*\)\^2/i.test(clean);
+  // 5. Detect linear equations without any squared terms (e.g. 'x + y = 1', '2x - 3y + 5 = 0', 'y = 2x')
+  const hasSquaredPattern = /[xy]\^2/i.test(clean) || /\([xy][+-]?[\d./]*\)\^2/i.test(clean) || /\([xy][+-]?[\d./]*\)\s*\*?\s*\([xy][+-]?[\d./]*\)/i.test(clean);
   if (!hasSquaredPattern) {
     throw new Error(
       lang === 'zh'
@@ -100,7 +174,10 @@ export function parseUniversalConic(
     equationStr += '=0';
   }
 
-  // 5. Check Standard Fraction Ellipse / Hyperbola: (x-h)^2/a^2 +/- (y-k)^2/b^2 = 1
+  // Pre-expand binomial squares like (x - 3)^2 or (x - 3)*(x - 3)
+  equationStr = expandAlgebraicParentheses(equationStr);
+
+  // 6. Check Standard Fraction Ellipse / Hyperbola: (x-h)^2/a^2 +/- (y-k)^2/b^2 = 1
   const simpleFrac = /^([xy])\^2\/([\d.]+)([+-])([xy])\^2\/([\d.]+)=1$/i;
   const matchSimple = equationStr.match(simpleFrac);
   if (matchSimple) {
@@ -130,7 +207,7 @@ export function parseUniversalConic(
     }
   }
 
-  // 6. Check Vertex Form Parabola: (y-k)^2 = 2p(x-h) or (x-h)^2 = 2p(y-k)
+  // 7. Check Vertex Form Parabola: (y-k)^2 = 2p(x-h) or (x-h)^2 = 2p(y-k)
   const vertexParabolaRegex = /^\(([xy])([+-]?[\d./]+)?\)\^2=([+-]?[\d./]+)?(?:\*|\()?([xy])([+-]?[\d./]+)?\)?$/i;
   const matchParabolaVertex = equationStr.match(vertexParabolaRegex);
   if (matchParabolaVertex) {
@@ -164,7 +241,7 @@ export function parseUniversalConic(
     }
   }
 
-  // 7. General Polynomial Expansion: Split across '=' and collect terms
+  // 8. General Polynomial Expansion: Split across '=' and collect terms
   return parseGeneralConicPolynomial(equationStr, lang);
 }
 
@@ -186,6 +263,34 @@ function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalys
   const parseSide = (sideStr: string, multiplier: number) => {
     let s = sideStr.trim();
     if (!s) return;
+
+    // Expand any fraction denominators on parenthesized polynomial terms, e.g. (1x^2 - 2x + 1)/25
+    s = s.replace(/\(([^)]+)\)\s*\/\s*([\d.]+)/gi, (_, inner, dStr) => {
+      const d = parseFloat(dStr);
+      if (isNaN(d) || d === 0) return inner;
+      const expVar = inner.replace(/([+-]?\s*[\d./]*)\s*([xyXY](?:\^2)?)/gi, (m: string, cStr: string, vStr: string) => {
+        let c = 1;
+        const trimC = cStr.replace(/\s+/g, '');
+        if (trimC === '' || trimC === '+') c = 1;
+        else if (trimC === '-') c = -1;
+        else if (trimC.includes('/')) {
+          const [n, den] = trimC.split('/');
+          c = parseFloat(n) / parseFloat(den);
+        } else c = parseFloat(trimC);
+        if (isNaN(c)) c = 1;
+        const newC = c / d;
+        return `${newC >= 0 ? '+' : ''}${newC}${vStr} `;
+      });
+      return expVar.replace(/([+-]\s*[\d.]+)(?![xyXY\^])/gi, (m: string, numStr: string) => {
+        const num = parseFloat(numStr.replace(/\s+/g, ''));
+        if (isNaN(num)) return m;
+        const newNum = num / d;
+        return `${newNum >= 0 ? '+' : ''}${newNum} `;
+      });
+    });
+
+    s = s.replace(/[()]/g, ' ');
+
     if (!s.startsWith('+') && !s.startsWith('-')) s = '+' + s;
 
     const chunks = s.match(/[+-][^+-]+/g) || [];
@@ -195,7 +300,7 @@ function parseGeneralConicPolynomial(clean: string, lang: Language): ConicAnalys
       const hasX = /x/i.test(chunk) && !isX2;
       const hasY = /y/i.test(chunk) && !isY2;
 
-      let numStr = chunk.replace(/\^2/g, '').replace(/[xyXY]/g, '');
+      let numStr = chunk.replace(/\^2/g, '').replace(/[xyXY]/g, '').trim();
       let coeff = 1;
       if (numStr === '+') coeff = 1;
       else if (numStr === '-') coeff = -1;

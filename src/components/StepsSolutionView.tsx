@@ -496,7 +496,7 @@ export const StepsSolutionView: React.FC<StepsSolutionViewProps> = ({
               <span>≈ {conic.latusRectum.val.toFixed(2).replace(/\.00$/, '')}</span>
               {conic.conicType === 'parabola' && (
                 <span className="block text-[10px] text-slate-400 font-sans mt-0.5">
-                  {lang === 'zh' ? '中式 2p = 通径长 | 美式 4p_US' : '2p = Latus Rectum (CN) / 4p_US (US)'}
+                  {lang === 'zh' ? '通径长（焦点弦 2p / 4p）' : 'Latus Rectum / Focal Chord (2p / 4p)'}
                 </span>
               )}
             </div>
